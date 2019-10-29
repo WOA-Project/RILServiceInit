@@ -1484,7 +1484,7 @@ int main()
 	}
 	std::cout << std::endl;
 
-	RILEXECUTORCONFIG RilExecutorConfig{ 0x14, 1, 1, { 0x00010002, 0 } };
+	RILEXECUTORCONFIG RilExecutorConfig = { 0x14, 1, 1, { 0x00010002, 0 } };
 	result = SetExecutorConfig(0, &RilExecutorConfig);
 	{
 		std::cout << "Ok." << std::endl;
