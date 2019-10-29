@@ -919,7 +919,7 @@ void PrintBanner()
 	std::cout << ".d88888b                             oo                   " << std::endl;
 	std::cout << "88.    \"'                                                 " << std::endl;
 	std::cout << "`Y88888b. .d8888b. 88d888b. dP   .dP dP .d8888b. .d8888b. " << std::endl;
-	std::cout << "      `8b 88ooood8 88'  `88 88   d8' 88 88'  `"" 88ooood8 " << std::endl;
+	std::cout << "      `8b 88ooood8 88'  `88 88   d8' 88 88'  `\"\" 88ooood8 " << std::endl;
 	std::cout << "d8'   .8P 88.  ... 88       88 .88'  88 88.  ... 88.  ... " << std::endl;
 	std::cout << " Y88888P  `88888P' dP       8888P'   dP `88888P' `88888P' " << std::endl;
 	std::cout << "                                                          " << std::endl;
