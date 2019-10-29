@@ -1,4 +1,4 @@
-# Radio Interface Layer (RIL) Service Initiliazer
+# Radio Interface Layer (RIL) Service Initializer
 This (Work In Progress/WIP) utility handles the initialization phase of cellular modems requiring a RIL in order to work in Windows 10. It depends on the Microsoft EMB infrastructure (and notably MSRil.sys, infrastructure not present by default in Windows 10 Client editions) to work as well as the RilProxy.dll file to perform communications with the EMB infrastructure.
 
 A series of tasks are performed such as reading the modem information, card information, UICC  application states and sending restricted commands to these UICC apps.
