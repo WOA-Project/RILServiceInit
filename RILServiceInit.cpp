@@ -3,8 +3,1163 @@
 
 #include <iostream>
 #include <Windows.h>
-#include <rilapi.h>
 #include <rilapitypes.h>
+
+
+#pragma region RILImports
+
+#define NCLASS_FROM_NOTIFICATION(code)              ((code) & NOTIFICATION_CLASS_MASK)
+
+typedef HANDLE HRIL, * LPHRIL;
+
+typedef void (CALLBACK* RILRESULTCALLBACK)(
+	HRIL            hRil,         // @parm RIL handle to current RIL instance
+	DWORD           dwCode,       // @parm result code
+	LPVOID          usersContext, // @parm users context assigned by the call that originated this response
+	const void* lpData,       // @parm data associated with the notification
+	DWORD           cbData,       // @parm size of the strcuture pointed to lpData
+	LPVOID          lpParam       // @parm parameter passed to <f RIL_Initialize>
+	);
+
+typedef void (CALLBACK* RILNOTIFYCALLBACK)(
+	HRIL  hRil,             // @parm RIL handle to current RIL instance
+	DWORD dwCode,           // @parm notification code
+	const void* lpData,     // @parm data associated with the notification
+	DWORD cbData,           // @parm size of the strcuture pointed to lpData
+	LPVOID lpParam          // @parm parameter passed to <f RIL_Initialize> 
+	);
+
+typedef HRESULT(*FRIL_Initialize)(
+	_In_ DWORD dwIndex,                      // @param index of the RIL port to use )(e.g., 1 for RIL1:)
+	_In_ RILRESULTCALLBACK pfnResult,        // @param function result callback
+	_In_ RILNOTIFYCALLBACK pfnNotify,        // @param notification callback
+	_In_ DWORD* lpdwNotifications,           // @param array of notifications to be enabled for this client
+	_In_ DWORD dwNotificationCount,          // @param the number of notifications to be enabled for this client    
+	_In_ LPVOID lpParam,                     // @param custom parameter passed to result and notification callbacks
+	_In_z_ WCHAR* pwszClientName,            // @param the name of the RIL client
+	_Out_ HRIL* lphRil                       // @param returned handle to RIL instance
+	);
+
+// de-initializes the RIL, which ultimately results in a CloseHandle to the MSRIL file handle held by the RIL proxy. It does not directly result in a request to the IHVRIL.
+typedef HRESULT(*FRIL_Deinitialize)(
+	HRIL hRil                           // @param handle to an RIL instance returned by <f RIL_Initialize>
+	);
+
+// returns the number of logical modem devices )(instances of the RIL driver). This function is implemented in the RIL proxy and does not result in a RIL_IOControl request.
+typedef HRESULT(*FRIL_GetNumberOfModems)(
+	DWORD* lpdwNumModem
+	);
+
+// enables additional classes of notifications for a client. This is an asynchronous call, but it is implemented internally within the RIL proxy and MSRIL, and does not result in a RIL_IOControl request to IHVRIL. 
+typedef HRESULT(*FRIL_EnableNotifications)(
+	HRIL hRil,                          // @param handle to RIL instance returned by <f RIL_Initialize>
+	LPVOID usersContext,                // @param given returned the call back function to identify this particular call
+	DWORD* lpdwNotifications,           // @param array of notifications to be enabled for this client
+	DWORD dwNotificationCount           // @param the number of notifications to be enabled for this client    
+	);
+
+// disables classes of notifications for a client. This is an asynchronous call, but it is implemented internally within the RIL proxy and MSRIL, and does not result in a RIL_IOControl request to IHVRIL.
+typedef HRESULT(*FRIL_DisableNotifications)(
+	HRIL hRil,                          // @param handle to RIL instance returned by <f RIL_Initialize>
+	LPVOID usersContext,                // @param given returned the call back function to identify this particular call
+	DWORD* lpdwNotifications,           // @param array of notifications to be disable for this client
+	DWORD dwNotificationCount           // @param the number of notifications to be disable for this client    
+	);
+
+
+//////////////////////////////////////////////////
+// Asynchronous Functions and Notifications
+//////////////////////////////////////////////////
+
+// retrieves the driver version information.
+typedef HRESULT(*FRIL_GetDriverVersion)(HRIL hRil, LPVOID lpContext, DWORD dwMinVersion, DWORD dwMaxVersion);
+// RIL_COMMAND_GETDRIVERVERSION
+// In: RILGETDRIVERVERSIONPARAMS
+// Async out: DWORD
+
+// queries to retrieve specific device capabilities.
+typedef HRESULT(*FRIL_GetDevCaps)(HRIL hRil, LPVOID lpContext, DWORD dwCapsType);
+// RIL_COMMAND_GETDEVCAPS
+// In: DWORD
+// Async out: varies
+// dwCapsType    Specifies the capability to be queried. These are itemized in the following sections.
+
+// returns specific device information as requested by the caller
+typedef HRESULT(*FRIL_GetDeviceInfo)(HRIL hRil, LPVOID lpContext, DWORD dwExecutor, RILDEVICEINFORMATION dwId);
+// RIL_COMMAND_GETDEVICEINFO
+// In: DEVICEINFO_PARAMS
+// Async out: array of WCHAR
+
+
+//////////////////////////////////////////////////
+// Device State
+//////////////////////////////////////////////////
+
+// retrieves the current equipment state. This function can be called to determine both if the radio is on and what features are ready.
+typedef HRESULT(*FRIL_GetEquipmentState)(HRIL hRil, LPVOID lpContext);
+// RIL_COMMAND_GETEQUIPMENTSTATE
+// In: none
+// Async out: RILEQUIPMENTSTATE
+
+// sets the radio equipment state. It is called to turn the radio on or off. It is also used to quiesce the driver and modem and save all state as part of a system shutdown.
+typedef HRESULT(*FRIL_SetEquipmentState)(HRIL hRil, LPVOID lpContext, DWORD dwEquipmentState);
+//RIL_COMMAND_SETEQUIPMENTSTATE
+	// In: DWORD
+	// Async out: none )(status only)
+
+// used to enable or disable certain notifications at the modem. When the application processor goes into a low power state with the backlight off it can turn off certain notifications such as signal quality reports in order to save current. When a notification is transitioned from enable to disable. The modem shall keep track of the change in notifications even if they are disabled. If the source of a notification at the modem side changes state while disabled, it shall send the new state immediately after being enabled.
+typedef HRESULT(*FRIL_SetNotificationFilterState)(HRIL hRil, LPVOID lpContext, DWORD dwFilterMask, DWORD dwFilterState);
+// RIL_COMMAND_SETNOTIFICATIONFILTERSTATE
+// In: SETNOTIFICATIONFILTERSTATE_PARAMS
+// Async out: none )(status only)
+
+// retrieves the current notification filter state.
+typedef HRESULT(*FRIL_GetNotificationFilterState)(HRIL hRil, LPVOID lpContext);
+// RIL_COMMAND_GETNOTIFICATIONFILTERSTATE
+// In: None
+// Async Out: DWORD dwFilterStateMask 
+
+// requests a modem reset.
+typedef HRESULT(*FRIL_ResetModem)(HRIL hRil, LPVOID lpContext, RILRESETMODEMKIND dwResetKind);
+// RIL_COMMAND_RESETMODEM
+// In: RILRESETMODEMKIND
+// Async out: none )(status only)
+
+//////////////////////////////////////////////////
+// UICC Slots and Cards
+//////////////////////////////////////////////////
+
+// returns information about the number of UICC slots and the state of each.
+typedef HRESULT(*FRIL_EnumerateSlots)(HRIL hRil, LPVOID lpContext);
+// RIL_COMMAND_ENUMERATESLOTS
+// In: none
+// Async out: RILUICCSLOTINFO
+
+// retrieves information about the UICC card in a specified slot.
+typedef HRESULT(*FRIL_GetCardInfo)(HRIL hRil, LPVOID lpContext, DWORD dwSlotIndex);
+// RIL_COMMAND_GETCARDINFO
+// In: DWORD
+// Async out: RILUICCCARDINFO
+
+// enables/disables power to a specified UICC card slot.
+typedef HRESULT(*FRIL_SetSlotPower)(HRIL hRil, LPVOID lpContext, DWORD dwSlotIndex, BOOL fPowerOn);
+// RIL_COMMAND_SETSLOTPOWER
+// In: SETSLOTPOWER_PARAMS
+// Async out: none )(status only)
+
+// retrieves information about a specified UICC file.
+typedef HRESULT(*FRIL_GetUiccRecordStatus)(HRIL hRil, LPVOID lpContext, const RILUICCFILEPATH* lpFilePath);
+// RIL_COMMAND_GETUICCRECORDSTATUS
+// In: RILUICCFILEPATH
+// Async out: RILUICCRECORDSTATUS
+
+// sends a specified restricted command to the UICC.
+typedef HRESULT(*FRIL_SendRestrictedUiccCmd)(HRIL hRil, LPVOID lpContext, RILUICCCOMMAND dwCommand, const RILUICCCMDPARAMETERS* lpParameters, const BYTE* lpbData, DWORD dwSize, const RILUICCLOCKCREDENTIAL* lpLockVerification);
+// RIL_COMMAND_SENDRESTRICTEDCOMMAND
+// In: SENDRESTRICTEDUICCCMD_PARAMS
+// Async out: RILUICCRESPONSE
+
+// specifies a set of files to RIL driver for which data change notifications are expected. Each call replaces the old list of files watched. On bootup or on UICC power toggle, the RIL driver will not persist the file list. To watch the files, the API will have to be called in these conditions.
+typedef HRESULT(*FRIL_WatchUiccFileChange)(HRIL hRil, LPVOID lpContext, const RILUICCFILES* lpUiccFiles);
+// RIL_COMMAND_WATCHUICCFILECHANGE
+// In: RILUICCFILES
+// Async out: RILUICCRESPONSE
+
+// returns information pertaining to an UICC application's PRL ID.
+typedef HRESULT(*FRIL_GetUiccPRLID)(HRIL hRil, LPVOID lpContext, HUICCAPP hUiccApp);
+// RIL_COMMAND_GETUICCPRLID
+// In: HUICCAPP
+// Async out: DWORD
+
+// retrieves the International Mobile Subscriber Identity )(IMSI) of the specified UICC application.
+typedef HRESULT(*FRIL_GetIMSI)(HRIL hRil, LPVOID lpContext, HUICCAPP hUiccApp);
+// RIL_COMMAND_GETIMSI
+// In: HUICCAPP
+// Async out: array characters
+
+// retrieves the subscriber numbers from the specified UICC application.
+typedef HRESULT(*FRIL_GetSubscriberNumbers)(HRIL hRil, LPVOID lpContext, HUICCAPP hUiccApp);
+// RIL_COMMAND_GETSUBSCRIBERNUMBERS
+// In: HUICCAPP
+// Async out: RILUICCSUBSCRIBERNUMBERS
+
+//retrieves the Answer To Reset message that was received from a UICC card in a specified slot
+typedef HRESULT(*FRIL_GetUiccATR)(HRIL hRil, LPVOID lpContext, DWORD dwSlotIndex);
+// RIL_COMMAND_GETUICCATR
+// In: DWORD
+// Async out: RILUICCATRINFO
+
+//opens a logical channel on the specified UICC by selecting a UICC application using its application identifier
+typedef HRESULT(*FRIL_OpenUiccLogicalChannel)(HRIL hRil, LPVOID lpContext, DWORD dwSlotIndex, DWORD dwChannelGroup, DWORD dwAppIdLength, const BYTE* pbAppId, DWORD dwSelectP2Arg);
+// RIL_COMMAND_OPENUICCLOGICALCHANNEL
+// In: RILOPENUICCLOGICALCHANNELPARAMS
+// Async out: RILOPENUICCLOGICALCHANNELINFO
+
+//closes an open logical channel on a specified UICC card
+typedef HRESULT(*FRIL_CloseUiccLogicalChannel)(HRIL hRil, LPVOID lpContext, DWORD dwSlotIndex, DWORD dwChannelId);
+// RIL_COMMAND_CLOSEUICCLOGICALCHANNEL
+// In: RILCLOSEUICCLOGICALCHANNELPARAMS
+// Async out: none )(status only)
+
+//closes all open logical channels in a specified group on a specified UICC card
+typedef HRESULT(*FRIL_CloseUiccLogicalChannelGroup)(HRIL hRil, LPVOID lpContext, DWORD dwSlotIndex, DWORD dwChannelGroup);
+// RIL_COMMAND_CLOSEUICCLOGICALCHANNELGROUP
+// In: RILCLOSEUICCLOGICALCHANNELGROUPPARAMS
+// Async out: none )(status only)
+
+//exchanges an Application Protocol Data Unit with a specified UICC card over a specified channel
+typedef HRESULT(*FRIL_ExchangeUiccAPDU)(HRIL hRil, LPVOID lpContext, DWORD dwSlotIndex, DWORD dwChannelId, DWORD dwAPDULength, const BYTE* bAPDU);
+// RIL_COMMAND_EXCHANGEUICCAPDU
+// In: RILEXCHANGEUICCAPDUPARAMS
+// Async out: RILEXCHANGEUICCAPDURESPONSE
+
+/////////////////////////////////////
+// Locking and UICC Security
+/////////////////////////////////////
+
+// queries the state of a UICC lock, asynchronously returning a RILUICCLOCKSTATE. In the case of a virtual R-UIM and applications which do not have any lock associated with them )(indicated by key references set to 0s in RILUICCAPPINFO), the asynchronous result will indicate an error RIL_E_INVALIDUICCKEYREF.
+typedef HRESULT(*FRIL_GetUiccLockState)(HRIL hRil, LPVOID lpContext, const RILUICCLOCK* lpRilUiccLock);
+// RIL_COMMAND_GETUICCLOCKSTATE
+// In: RILUICCLOCK
+// Async out: RILUICCLOCKSTATE
+
+// queries a service to get the service lock, if any. For services such as fixed dialing this represents the PIN2 state for that operation.
+typedef HRESULT(*FRIL_GetUiccServiceLock)(HRIL hRil, LPVOID lpContext, const RILUICCSERVICE* lpService);
+// RIL_COMMAND_GETUICCSERVICE
+// In: RILUICCSERVICE
+// Async out: RILUICCLOCK
+
+typedef HRESULT(*FRIL_VerifyUiccLock)(HRIL hRil, LPVOID lpContext, const RILUICCLOCKCREDENTIAL* lpVerification);
+// RIL_COMMAND_VERIFYUICCLOCK
+// In: RILUICCLOCKCREDENTIAL
+// Async out: none )(status only)
+
+// enables or disables a UICC lock.
+typedef HRESULT(*FRIL_SetUiccLockEnabled)(HRIL hRil, LPVOID lpContext, const RILUICCLOCKCREDENTIAL* lpLockCredential, BOOL fEnable);
+// RIL_COMMAND_SETUICCLOCKENABLED
+// In: RILSETUICCLOCKENABLED_PARAMS
+// Async out: none )(status only)
+
+// unblocks a UICC lock that has been blocked by too many failed verification attempts and sets a new PIN password.
+typedef HRESULT(*FRIL_UnblockUiccLock)(HRIL hRil, LPVOID lpContext, const RILUICCLOCKCREDENTIAL* lpLockCredential, LPCSTR lpszNewPassword);
+// RIL_COMMAND_UNBLOCKUICCLOCK
+// In: RILUNBLOCKUICCLOCK_PARAMS
+// Async out: none )(status only)
+
+// changes the lock verification password. )(This is the PIN password; there is no API to change the PUK password.)
+typedef HRESULT(*FRIL_ChangeUiccLockPassword)(HRIL hRil, LPVOID lpContext, const RILUICCLOCKCREDENTIAL* lpLockCredential, LPCSTR lpszNewPassword);
+// RIL_COMMAND_CHANGEUICCLOCKPASSWORD
+// In: CHANGEUICCLOCKPASSWORD_PARAMS
+// Async out: none )(status only)
+
+// gets the personalization check state of a UICC application.
+typedef HRESULT(*FRIL_GetUiccAppPersoCheckState)(HRIL hRil, LPVOID lpContext, HUICCAPP hUiccApp);
+// RIL_COMMAND_GETUICCAPPPERSOCHECKSTATE
+// In: HUICCAPP
+// Async out: RILUICCAPPPERSOCHECKSTATUS
+
+// gets the deactivation state information for a specific perso feature.
+typedef HRESULT(*FRIL_GetPersoDeactivationState)(HRIL hRil, LPVOID lpContext, DWORD dwPersoFeature);
+// RIL_COMMAND_GETPERSODEACTIVATIONSTATE
+// In: DWORD
+// Async out: RILPERSODEACTIVATIONSTATE
+
+// deactivates a perso lock on the device.
+typedef HRESULT(*FRIL_DeactivatePerso)(HRIL hRil, LPVOID lpContext, DWORD dwPersoFeature, LPCSTR lpszPassword);
+// RIL_COMMAND_DEACTIVATEPERSO
+// In: DEACTIVATEPERSO_PARAMS
+// Async out: none )(status only)
+
+///////////////////////
+// FDN
+/////////////////////
+typedef HRESULT(*FRIL_GetUiccServiceState)(HRIL hRil, LPVOID lpContext, HUICCAPP hUiccApp, RILUICCSERVICESERVICE dwService);
+// RIL_COMMAND_GETUICCSERVICESTATE
+// In: RILUICCSERVICE
+// Async out: RILUICCSERVICESTATE
+
+typedef HRESULT(*FRIL_SetUiccServiceState)(HRIL hRil, LPVOID lpContext, HUICCAPP hUiccApp, RILUICCSERVICESERVICE dwService, const RILUICCLOCKCREDENTIAL* lpLockCredential, BOOL fEnable);
+// RIL_COMMAND_SETUICCSERVICESTATE
+// In: RILUICCSERVICEPARAMS
+// Async out: RILUICCSERVICESTATE
+
+
+////////////////////////
+// Phonebook
+////////////////////////
+
+// reads phonebook entries from the specified range of indices of the current storage location.
+typedef HRESULT(*FRIL_ReadPhonebookEntries)(HRIL hRil, LPVOID lpContext, HUICCAPP hUiccApp, RILPHONEENTRYSTORELOCATION dwStoreLocation, DWORD dwStartIndex, DWORD dwEndIndex);
+// RIL_COMMAND_READPHONEBOOKENTRIES
+// In: READPHONEBOOKENTRIES_PARAMS
+// Async out: array of RILPHONEBOOKENTRY
+
+// writes a phone book entry to the current storage location.
+typedef HRESULT(*FRIL_WritePhonebookEntry)(HRIL hRil, LPVOID lpContext, HUICCAPP hUiccApp, RILPHONEENTRYSTORELOCATION dwStoreLocation, const RILPHONEBOOKENTRY* lpEntry, const RILUICCLOCKCREDENTIAL* lpLockVerification);
+// RIL_COMMAND_WRITEPHONEBOOKENTRY
+// In: WRITEPHONEBOOKENTRY_PARAMS
+// Async out: none )(status only)
+
+// deletes a phonebook entry from the current storage location.
+typedef HRESULT(*FRIL_DeletePhonebookEntry)(HRIL hRil, LPVOID lpContext, HUICCAPP hUiccApp, RILPHONEENTRYSTORELOCATION dwStoreLocation, DWORD dwIndex, const RILUICCLOCKCREDENTIAL* lpLockVerification);
+// RIL_COMMAND_DELETEPHONEBOOKENTRY
+// In: DELETEPHONEBOOKENTRY_PARAMS
+// Async out: none )(status only)
+
+// retrieves the current phonebook options.
+typedef HRESULT(*FRIL_GetPhonebookOptions)(HRIL hRil, LPVOID lpContext, HUICCAPP hUiccApp, RILPHONEENTRYSTORELOCATION dwStoreLocation);
+// RIL_COMMAND_GETPHONEBOOKOPTIONS
+// In: GETPHONEBOOKOPTIONS_PARAMS
+// Async out: RILPHONEBOOKINFO
+
+// retrieves the additional numbers.
+typedef HRESULT(*FRIL_GetAllAdditionalNumberStrings)(HRIL hRil, LPVOID lpContext, HUICCAPP hUiccApp);
+// RIL_COMMAND_GETALLADDITIONALNUMBERSTRINGS
+// In: GETALLADDITIONALNUMBERSTRINGS_PARAMS
+// Async out: RILPHONEBOOKADDITIONALNUMBERINFO
+
+// writes an additional number string for the UICC phonebook
+typedef HRESULT(*FRIL_WriteAdditionalNumberString)(HRIL hRil, LPVOID lpContext, HUICCAPP hUiccApp, const RILPHONEBOOKADDITIONALNUMBERSTRING* lpRilPBANS);
+// RIL_COMMAND_WRITEADDITIONALNUMBERSTRING
+// In: RILWRITEADDITIONALNUMBERSTRINGPARAMS
+// Async out: none )(status only)
+
+// deletes an additional number string for the UICC phonebook
+typedef HRESULT(*FRIL_DeleteAdditionalNumberString)(HRIL hRil, LPVOID lpContext, HUICCAPP hUiccApp, DWORD dwNumId);
+//RIL_COMMAND_DELETEADDITIONALNUMBERSTRING
+// In: RILDELETEADDITIONALNUMBERSTRINGPARAMS
+// Async out: none )(status only)
+
+// retrieves all the emergency numbers known by the modem. This includes emergency numbers provisioned in the modem itself and all emergency numbers defined by the UICC cards attached to that modem.
+typedef HRESULT(*FRIL_GetAllEmergencyNumbers)(HRIL hRil, LPVOID lpContext);
+// RIL_COMMAND_GETALLEMERGENCYNUMBERS
+// In: none
+// Async out: RILEMERGENCYNUMBERSLIST 
+
+
+////////////////////////////////////////
+// Radio Network Registration
+////////////////////////////////////////
+
+// specifies the configuration to be used by the RIL instance.  This setting persists until the function is called again.  Default configuration index used is 0.
+typedef HRESULT(*FRIL_SetRadioConfiguration)(HRIL hRil, LPVOID lpContext, DWORD dwConfigIdx);
+// RIL_COMMAND_SETRADIOCONFIGURATION
+// In: DWORD
+// Async out: none )(status only)
+
+// gets the current configuration used by the RIL instance.
+typedef HRESULT(*FRIL_GetRadioConfiguration)(HRIL hRil, LPVOID lpContext);
+// RIL_COMMAND_GETRADIOCONFIGURATION
+// In: none
+// Async out: DWORD
+
+// assigns subscription configuration parameters to an executor.
+typedef HRESULT(*FRIL_SetExecutorConfig)(HRIL hRil, LPVOID lpContext, DWORD dwExecutor, const RILEXECUTORCONFIG* lpRilExecutorConfig);
+// RIL_COMMAND_SETEXECUTORCONFIG
+// In: SETEXECUTORCONFIG_PARAMS
+// Async out: none )(status only)
+
+// retrieves the configuration parameters that are currently associated with an executor.
+typedef HRESULT(*FRIL_GetExecutorConfig)(HRIL hRil, LPVOID lpContext, DWORD dwExecutor);
+// RIL_COMMAND_GETEXECUTORCONFIG
+// In: DWORD
+// Async out: RILEXECUTORCONFIG
+
+// assigns user preference for radio system selection to an executor.
+typedef HRESULT(*FRIL_SetSystemSelectionPrefs_V1)(HRIL hRil, LPVOID lpContext, RILSETSYSTEMSELECTIONPREFSFLAG dwFlags, const RILSYSTEMSELECTIONPREFS_V1* lpRilSystemSelectionPrefs);
+// RIL_COMMAND_SETSYSTEMSELECTIONPREFS
+// In: SETSYSTEMSELECTIONPREFS_PARAMS_V1
+// Async out: none )(status only)
+
+// assigns user preference for radio system selection to an executor.
+typedef HRESULT(*FRIL_SetSystemSelectionPrefs)(HRIL hRil, LPVOID lpContext, RILSETSYSTEMSELECTIONPREFSFLAG dwFlags, const RILSYSTEMSELECTIONPREFS* lpRilSystemSelectionPrefs);
+// RIL_COMMAND_SETSYSTEMSELECTIONPREFS
+// In: SETSYSTEMSELECTIONPREFS_PARAMS
+// Async out: none )(status only)
+
+// retrieves the current system selection preferences from the RIL.
+typedef HRESULT(*FRIL_GetSystemSelectionPrefs)(HRIL hRil, LPVOID lpContext, DWORD dwExecutor);
+// RIL_COMMAND_GETSYSTEMSELECTIONPREFS
+// In: DWORD
+// Async out: RILSYSTEMSELECTIONPREFS
+
+// request RIL driver to do an active radio scan, and returns the list of available operators.
+typedef HRESULT(*FRIL_GetOperatorList)(HRIL hRil, LPVOID lpContext, DWORD dwExecutor, DWORD dwSystemTypes);
+// RIL_COMMAND_GETOPERATORLIST
+// In: GETOPERATORLIST_PARAMS
+// Async out: array of RILOPERATORINFO
+
+// retrieves the list of preferred operators.
+typedef HRESULT(*FRIL_GetPreferredOperatorList)(HRIL hRil, LPVOID lpContext, HUICCAPP hUiccApp, RILGETPREFERENCEDOPERATORLISTFORMAT dwFormat);
+// RIL_COMMAND_GETPREFERREDOPERATORLIST
+// In: GETPREFERREDOPERATORLIST_PARAMS
+// Async out: array of RILOPERATORINFO
+
+// Set the list of preferred operators.
+typedef HRESULT(*FRIL_SetPreferredOperatorList)(HRIL hRil, LPVOID lpContext, HUICCAPP hUiccApp, DWORD dwPreferredListSize, RILOPERATORNAMES* lpPreferredList);
+// RIL_COMMAND_SETPREFERREDOPERATORLIST
+// In:  RILSETPREFERREDOPERATORLISTPARAMS 
+// Async out:  none )(status only)
+
+// retrieves the radio network registration status, for a specified subscription supported by current radio configuration.
+typedef HRESULT(*FRIL_GetCurrentRegStatus)(HRIL hRil, LPVOID lpContext, DWORD dwExecutor);
+// RIL_COMMAND_GETCURRENTREGSTATUS
+// In: DWORD
+// Async out: RILREGSTATUSINFO
+
+
+//////////////////////////////////////
+// Signal Strength and NITZ
+//////////////////////////////////////
+
+// retrieves information about the received signal quality. 
+typedef HRESULT(*FRIL_GetSignalQuality)(HRIL hRil, LPVOID lpContext, DWORD dwExecutor);
+// RIL_COMMAND_GETSIGNALQUALITY
+// In: DWORD dwExecutor
+// Async out: array of 1 or 2 RILSIGNALQUALITY structures
+
+
+////////////////////////////////////////////////////
+// Card Application Toolkit )(UICC Toolkit)
+////////////////////////////////////////////////////
+
+// indicates to the RIL driver that the application processor is ready to handle UICC toolkit events )(notably the initial SETUP MENU).
+typedef HRESULT(*FRIL_RegisterUiccToolkitService)(HRIL hRil, LPVOID lpContext, DWORD dwSlotIndex);
+// RIL_COMMAND_REGISTERUICCTOOLKITSERVICE
+// In: DWORD
+// Async out: none )(status only)
+
+// sends the UICC Toolkit Profile to the radio. The sent profile will be stored in the radio/IHVRIL permanent storage and is not sent to the UICC Card until the next reset.
+typedef HRESULT(*FRIL_SetUiccToolkitProfile)(HRIL hRil, LPVOID lpContext, const RILUICCTOOLKITPROFILE* lpToolkitProfile);
+// RIL_COMMAND_SETUICCTOOLKITPROFILE
+// In: RILSETUICCTOOLKITPROFILEPARAMS
+// Async out: none )(status only)
+
+// retrieves the toolkit profile. When called following RIL_SetUiccToolkitProfile, this function returns the profile downloaded and stored in the IHV RIL/modem and not the currently-active profile.
+typedef HRESULT(*FRIL_GetUiccToolkitProfile)(HRIL hRil, LPVOID lpContext);
+// RIL_COMMAND_GETUICCTOOLKITPROFILE
+// In: DWORD
+// Async out: RILUICCTOOLKITPROFILE
+
+// sends a response to an executed UICC toolkit command.
+typedef HRESULT(*FRIL_SendUiccToolkitCmdResponse)(HRIL hRil, LPVOID lpContext, DWORD dwSlotIndex, const LPBYTE pbDetails, DWORD dwDetailSize);
+// RIL_COMMAND_SENDUICCTOOLKITCMDRESPONSE
+// In: RILSENDUICCTOOLKITCMDRESPONSEPARAMS
+// Async out: none )(status only)
+
+// sends an envelope command to the UICC. The envelope command is used by the application processor mainly for Menu Selection, Event Download and Call Control.
+typedef HRESULT(*FRIL_SendUiccToolkitEnvelope)(HRIL hRil, LPVOID lpContext, DWORD dwSlotIndex, const LPBYTE pbEnvelope, DWORD dwEnvelopeSize);
+// RIL_COMMAND_SENDUICCTOOLKITENVELOPE
+// In: RILSENDUICCTOOLKITENVELOPEPARAMS
+// Async out: none )(status only)
+
+/////////////////////////////////////////
+// Call Management )(Telephony)
+/////////////////////////////////////////
+
+// responsible for dialing circuit switched voice calls.
+typedef HRESULT(*FRIL_Dial_V1)(HRIL hRil, LPVOID lpContext, DWORD dwExecutor, const RILADDRESS* lpraAddress, DWORD dwOptions);
+// RIL_COMMAND_DIAL
+// In: RILDIALPARAMS_V1
+// Async out: DWORD
+
+// responsible for dialing circuit switched or packet switched voice calls.
+typedef HRESULT(*FRIL_Dial)(HRIL hRil, LPVOID lpContext, DWORD dwExecutor, const RILADDRESS* lpraAddress, DWORD dwOptions, RILCALLTYPE dwType, const LPRILCALLMEDIAOFFERANSWERSET lprcmOfferAnswer);
+// RIL_COMMAND_DIAL
+// In: RILDIALPARAMS_V2
+// Async out: DWORD
+
+// modifies the state of circuit switched calls.
+typedef HRESULT(*FRIL_ManageCalls_V1)(HRIL hRil, LPVOID lpContext, DWORD dwExecutor, RILMANAGECALLPARAMSCOMMAND dwCommand, DWORD dwID);
+// RIL_COMMAND_MANAGECALLS
+// In: RILMANAGECALLSPARAMS_V1
+// Async out: none )(status only)
+
+// modifies the state of circuit switched or packet switched calls.
+typedef HRESULT(*FRIL_ManageCalls_V2)(HRIL hRil, LPVOID lpContext, DWORD dwExecutor, RILMANAGECALLPARAMSCOMMAND dwCommand, DWORD dwID, const LPRILCALLMEDIAOFFERANSWERSET lprcmOfferAnswer);
+// RIL_COMMAND_MANAGECALLS
+// In: RILMANAGECALLSPARAMS_V2
+// Async out: none )(status only)
+
+// modifies the state of circuit switched or packet switched calls.
+typedef HRESULT(*FRIL_ManageCalls_V3)(HRIL hRil, LPVOID lpContext, DWORD dwExecutor, RILMANAGECALLPARAMSCOMMAND dwCommand, DWORD dwID, const LPRILCALLMEDIAOFFERANSWERSET lprcmOfferAnswer, const LPRILADDRESS lpraAddress);
+// RIL_COMMAND_MANAGECALLS
+// In: RILMANAGECALLSPARAMS_V3
+// Async out: none )(status only)
+
+// modifies the state of circuit switched or packet switched calls.
+typedef HRESULT(*FRIL_ManageCalls)(HRIL hRil, LPVOID lpContext, DWORD dwExecutor, RILMANAGECALLPARAMSCOMMAND dwCommand, DWORD dwID, const LPRILCALLMEDIAOFFERANSWERSET lprcmOfferAnswer, const LPRILADDRESS lpraAddress, const LPRILCALLRTT lpstRTTInfo);
+// RIL_COMMAND_MANAGECALLS
+// In: RILMANAGECALLSPARAMS_V4
+// Async out: none )(status only)
+
+typedef HRESULT(*FRIL_GetCallList)(HRIL hRil, LPVOID lpContext, DWORD dwExecutor);
+//RIL_COMMAND_GETCALLLIST
+// In: DWORD
+// Async out: RILCALLLIST
+
+// controls the modem emergency mode. It is used to exit the CDMA emergency call back mode. It is also used to indicate to one modem in a dual active system that another modem is an emergency mode. 
+typedef HRESULT(*FRIL_EmergencyModeControl)(HRIL hRil, LPVOID lpContext, DWORD dwExecutor, RILEMERGENCYMODECONTROLPARAMSCONTROL dwEmergencyModeControl);
+// RIL_COMMAND_EMERGENCYMODECONTROL
+// In: EMERGENCYMODECONTROL_PARAMS
+// Async out: none )(status only)
+
+// retrieves current call forwarding rules.
+typedef HRESULT(*FRIL_GetCallForwardingSettings)(HRIL hRil, LPVOID lpContext, DWORD dwExecutor, RILCALLFORWARDINGSETTINGSREASON dwReason, BOOL fAllClasses, DWORD dwInfoClasses);
+// RIL_COMMAND_GETCALLFORWARDINGSETTINGS
+// In: GETCALLFORWARDING_PARAMS
+// Async out: array of RILCALLFORWARDINGSETTINGS
+
+// enables or disables the specified call forwarding rule.
+typedef HRESULT(*FRIL_SetCallForwardingStatus)(HRIL hRil, LPVOID lpContext, DWORD dwExecutor, RILCALLFORWARDINGSETTINGSREASON dwReason, BOOL fAllClasses, DWORD dwInfoClasses, RILSERVICESETTINGSSTATUS dwStatus);
+// RIL_COMMAND_SETCALLFORWARDINGSTATUS
+// In: SETCALLFORWARDINGSTATUS_PARAMS
+// Async out: none )(status only)
+
+// adds a call forwarding rule.
+typedef HRESULT(*FRIL_AddCallForwarding)(HRIL hRil, LPVOID lpContext, DWORD dwExecutor, RILCALLFORWARDINGSETTINGSREASON dwReason, const RILCALLFORWARDINGSETTINGS* lpSettings);
+// RIL_COMMAND_ADDCALLFORWARDING
+// In: ADDCALLFORWARDING_PARAMS
+// Async out: none )(status only)
+
+// removes a call forwarding rule.
+typedef HRESULT(*FRIL_RemoveCallForwarding)(HRIL hRil, LPVOID lpContext, DWORD dwExecutor, RILCALLFORWARDINGSETTINGSREASON dwReason, DWORD dwInfoClasses);
+// RIL_COMMAND_REMOVECALLFORWARDING
+// In: REMOVECALLFORWARDING_PARAMS
+// Async out: none )(status only)
+
+// retrieves the status of the specified type of call barring.
+typedef HRESULT(*FRIL_GetCallBarringStatus)(HRIL hRil, LPVOID lpContext, DWORD dwExecutor, RILCALLBARRINGSTATUSPARAMSTYPE dwType, BOOL fAllClasses, DWORD dwInfoClasses);
+// RIL_COMMAND_GETCALLBARRINGSTATUS
+// In: GETCALLBARRINGSTATUS_PARAMS
+// Async out: DWORD
+
+// enables or disables the specified type of call barring.
+typedef HRESULT(*FRIL_SetCallBarringStatus)(HRIL hRil, LPVOID lpContext, DWORD dwExecutor, RILCALLBARRINGSTATUSPARAMSTYPE dwType, BOOL fAllClasses, DWORD dwInfoClasses, LPCSTR lpszPassword, RILCALLBARRINGSTATUSPARAMSSTATUS dwStatus);
+// RIL_COMMAND_SETCALLBARRINGSTATUS
+// In: SETCALLBARRINGSTATUS_PARAMS
+// Async out: none )(status only)
+
+// changes the password for the specified type of call barring.
+typedef HRESULT(*FRIL_ChangeCallBarringPassword)(HRIL hRil, LPVOID lpContext, DWORD dwExecutor, RILCALLBARRINGSTATUSPARAMSTYPE dwType, LPCSTR lpwszOldPassword, LPCSTR lpwszNewPassword, LPCSTR lpszConfirmPassword);
+// RIL_COMMAND_CHANGECALLBARRINGPASSWORD
+// In: CHANGECALLBARRINGPASSWORD_PARAMS
+// Async out: none )(status only)
+
+// retrieves information classes for which call waiting is currently enabled.
+typedef HRESULT(*FRIL_GetCallWaitingSettings)(HRIL hRil, LPVOID lpContext, DWORD dwExecutor, BOOL fAllClasses, DWORD dwInfoClasses);
+// RIL_COMMAND_GETCALLWAITINGSETTINGS
+// In: GETCALLWAITINGSETTINGS_PARAMS        
+// Async out: DWORD
+
+// enables or disables call waiting for the specified information class.
+typedef HRESULT(*FRIL_SetCallWaitingStatus)(HRIL hRil, LPVOID lpContext, DWORD dwExecutor, BOOL fAllClasses, DWORD dwInfoClasses, RILSERVICESETTINGSSTATUS dwStatus);
+// RIL_COMMAND_SETCALLWAITINGSTATUS
+// In: SETCALLWAITINGSTATUS_PARAMS
+// Async out: none )(status only)
+
+// retrieves the current caller ID settings.
+typedef HRESULT(*FRIL_GetCallerIdSettings)(HRIL hRil, LPVOID lpContext, DWORD dwExecutor);
+// RIL_COMMAND_GETCALLERIDSETTINGS
+// In: DWORD
+// Async out: RILCALLERIDSETTINGS
+
+// retrieves the current settings for the dialed ID.
+typedef HRESULT(*FRIL_GetDialedIdSettings)(HRIL hRil, LPVOID lpContext, DWORD dwExecutor);
+// RIL_COMMAND_GETDIALEDIDSETTINGS
+// In: DWORD
+// Async out: RILDIALEDIDSETTINGS
+
+// retrieves the current settings for the Hide Connected ID option.
+typedef HRESULT(*FRIL_GetHideConnectedIdSettings)(HRIL hRil, LPVOID lpContext, DWORD dwExecutor);
+// RIL_COMMAND_GETHIDECONNECTEDIDSETTINGS
+// In: DWORD
+// Async out: RILHIDECONNECTEDIDSETTINGS
+
+// retrieves the current settings for the Hide ID option.
+typedef HRESULT(*FRIL_GetHideIdSettings)(HRIL hRil, LPVOID lpContext, DWORD dwExecutor);
+// RIL_COMMAND_GETHIDEIDSETTINGS
+// In: DWORD
+// Async out: RILHIDEIDSETTINGS
+
+// sends a flash message. A flash message updates the state of active, held and waiting calls on a CDMA device.
+typedef HRESULT(*FRIL_SendFlash)(HRIL hRil, LPVOID lpContext, DWORD dwExecutor, LPRILADDRESS lpraRilAddress);
+// RIL_COMMAND_SENDFLASH
+// In: RILADDRESS
+// Async out: none )(status only)
+
+// sends Phase 1 unstructured supplementary service )(USSD) data.
+typedef HRESULT(*FRIL_SendSupServiceData)(HRIL hRil, LPVOID lpContext, DWORD dwExecutor, const WCHAR* lpwszData);
+// RIL_COMMAND_SENDSUPSERVICEDATA
+// In: SENDSUPSERVICEDATA_PARAMS
+// Async out: none )(status only)
+
+// sends unstructured supplementary service )(USSD) data response to a USSD request from the network.
+typedef HRESULT(*FRIL_SendSupServiceDataResponse)(HRIL hRil, LPVOID lpContext, DWORD dwExecutor, const WCHAR* lpwszData);
+// RIL_COMMAND_SENDSUPSERVICEDATA
+// In: SENDSUPSERVICEDATARESPONSE_PARAMS
+// Async out: none )(status only)
+
+// cancels an ongoing unstructured supplementary service )(USSD) data session.
+typedef HRESULT(*FRIL_CancelSupServiceDataSession)(HRIL hRil, LPVOID lpContext, DWORD dwExecutor);
+// RIL_COMMAND_SENDSUPSERVICEDATA
+// In: CANCELSUPSERVICEDATA_PARAMS
+// Async out: none )(status only)
+
+// Responsible for sending RTT data text on packet switched calls.
+typedef HRESULT(*FRIL_SendRTT)(HRIL hRil, LPVOID lpContext, DWORD dwID, DWORD dwExecutor, const WCHAR* lpwszRTTText);
+// RIL_COMMAND_SENDRTT
+// In: RILSENDRTTDATAPARAMS
+// Async out: none )(status only)
+
+//////////////////////////////////
+// Audio and DTMF
+//////////////////////////////////
+
+// sends Dual-Tone Multifrequency )(DTMF) tones across an established voice call.
+typedef HRESULT(*FRIL_SendDTMF)(HRIL hRil, LPVOID lpContext, DWORD dwExecutor, LPCSTR lpszChars, DWORD dwDigitOnTimeMs, DWORD dwDigitOffTimeMs);
+// RIL_COMMAND_SENDDTMF
+// In: SENDDTMF_PARAMS
+// Async out: none )(status only)
+
+// starts a DTMF tone across an established voice call. The tone is played until it is stopped with RIL_StopDTMF.
+typedef HRESULT(*FRIL_StartDTMF)(HRIL hRil, LPVOID lpContext, DWORD dwExecutor, CHAR ch);
+// RIL_COMMAND_STARTDTMF
+// In: STARTDTMF_PARAMS
+// Async out: none
+
+// stops DTMF tones across an established voice call.
+typedef HRESULT(*FRIL_StopDTMF)(HRIL hRil, LPVOID lpContext, DWORD dwExecutor);
+// RIL_COMMAND_STOPDTMF
+// In: DWORD
+// Async out: none
+
+
+///////////////////////////
+// Messaging
+///////////////////////////
+
+// gets the current messaging service options.
+typedef HRESULT(*FRIL_GetMsgServiceOptions)(HRIL hRil, LPVOID lpContext, HUICCAPP hUiccApp);
+// RIL_COMMAND_GETMSGSERVICEOPTIONS
+// In: HUICCAPP
+// Async out: RILMSGSERVICEINFO
+
+// reads a message from the current storage location.
+typedef HRESULT(*FRIL_ReadMsg)(HRIL hRil, LPVOID lpContext, HUICCAPP hUiccApp, DWORD dwIndex);
+// RIL_COMMAND_READMSG
+// In: READMSG_PARAMS
+// Async out: RILMESSAGEINFO 
+
+// writes a message to the current storage location.
+typedef HRESULT(*FRIL_WriteMsg)(HRIL hRil, LPVOID lpContext, HUICCAPP hUiccApp, const RILMESSAGE* lpMessage, RILMESSAGESTATUS dwStatus);
+// RIL_COMMAND_WRITEMSG
+// In: WRITEMSG_PARAMS
+// Async out: DWORDThe input parameter is a WRITEMSG_PARAMS struct:
+
+// deletes a message from the current storage location.
+typedef HRESULT(*FRIL_DeleteMsg)(HRIL hRil, LPVOID lpContext, HUICCAPP hUiccApp, DWORD dwIndex);
+// RIL_COMMAND_DELETEMSG
+// In: DELETEMSG_PARAMS
+// Async out: none )(status only 
+
+// retrieves the cell broadcast messaging configuration.
+typedef HRESULT(*FRIL_GetCellBroadcastMsgConfig)(HRIL hRil, LPVOID lpContext, DWORD dwExecutor);
+// RIL_COMMAND_GETCELLBROADCASTMSGCONFIG
+// In: DWORD
+// Async out: RILCBMSGCONFIG 
+
+// turns on and off notifications for cell broadcast messages with specific IDs and language settings. The GWL structs are used for setting the GW and LTE settings and the CDMA structs are for the CDMA settings.
+typedef HRESULT(*FRIL_SetCellBroadcastMsgConfig)(HRIL hRil, LPVOID lpContext, HUICCAPP hUiccApp, const RILCBMSGCONFIG* lpCbMsgConfigInfo);
+// RIL_COMMAND_SETCELLBROADCASTMSGCONFIG
+// In: SETBROADCAST_PARAMS
+// Async out: none )(status only)
+
+// checks with a specific SMS message in the UICC is read or unread.
+typedef HRESULT(*FRIL_GetMsgInUiccStatus)(HRIL hRil, LPVOID lpContext, HUICCAPP hUiccApp, DWORD dwIndex);
+// RIL_COMMAND_GETMSGINUICCSTATUS
+// In: GETMSGINUICCSTATUS_PARAMS
+// Async out: DWORD
+
+// sets the status of a message in the UICC as read or unread.
+typedef HRESULT(*FRIL_SetMsgInUiccStatus)(HRIL hRil, LPVOID lpContext, HUICCAPP hUiccApp, DWORD dwIndex, RILMESSAGESTATUS dwStatus);
+// RIL_COMMAND_SETMSGINUICCSTATUS
+// In: SETMSGINUICCSTATUS_PARAMS
+// Async out: none )(status only)
+
+// tells the radio whether storage for SMS messages is available. In turn, this informs the network of the availability of storage so that the network can suspend delivery where there is no storage for new messages. 
+typedef HRESULT(*FRIL_SetMsgMemoryStatus)(HRIL hRil, LPVOID lpContext, BOOL bMsgMemoryFull);
+// RIL_COMMAND_SETMSGMEMORYSTATUS
+// In: BOOL
+// Async out: none )(status only)
+
+// sends a message.
+typedef HRESULT(*FRIL_SendMsg)(HRIL hRil, LPVOID lpContext, DWORD dwExecutor, HUICCAPP hUiccApp, const RILMESSAGE* lpMessage, DWORD dwOptions);
+// RIL_COMMAND_SENDMSG
+// In: SENDMSG_PARAMS
+// Async out: RILSENDMSGRESPONSE
+
+// sends a message ACK.
+typedef HRESULT(*FRIL_SendMsgAck_V1)(HRIL hRil, LPVOID lpContext, DWORD dwExecutor, HUICCAPP hUiccApp, DWORD dwAckID, RILMSGACKSTATUS dwMsgStatus);
+// RIL_COMMAND_SENDMSGACK
+// In: SENDMSG_PARAMS
+// Async out: none )(status only)
+
+// sends a message ACK.
+typedef HRESULT(*FRIL_SendMsgAck)(HRIL hRil, LPVOID lpContext, DWORD dwExecutor, HUICCAPP hUiccApp, DWORD dwAckID, RILMSGACKSTATUS dwMsgStatus, RILSMSFORMAT dwSmsFormat, RILSMSACKOPT dwOptions);
+// RIL_COMMAND_SENDMSGACK
+// In: SENDMSG_PARAMS
+// Async out: none )(status only)
+
+// gets the address of the Short Message Service Center for a specified UICC application.
+typedef HRESULT(*FRIL_GetSMSC)(HRIL hRil, LPVOID lpContext, HUICCAPP hUiccApp);
+// RIL_COMMAND_GETSMSC
+// In: HUICCAPP
+// Async out: RILADDRESS
+
+// sets the address of the Short Message Service Center for a specified UICC application.
+typedef HRESULT(*FRIL_SetSMSC)(HRIL hRil, LPVOID lpContext, HUICCAPP hUiccApp, const RILADDRESS* lpraSvcCtrAddress);
+// RIL_COMMAND_SETSMSC
+// In: SETSMSC_PARAMS
+// Async out: none )(status only)
+
+// queries the IMS Status.
+typedef HRESULT(*FRIL_GetIMSStatus)(HRIL hRil, LPVOID lpContext, DWORD dwExecutor);
+// RIL_COMMAND_GETIMSSTATUS
+// In: DWORD
+// Async out: RILIMSSTATUS
+
+// returns device management profile information as configured in the modem
+typedef HRESULT(*FRIL_GetDMProfileConfigInfo)(HRIL hRil, LPVOID lpContext, DWORD dwExecutor, DWORD dwConfigItem);
+// RIL_GetDMProfileConfigInfo
+// In: DWORD
+// Async out: RILDMCONFIGINFOVALUE
+
+// returns device management profile information as configured in the modem
+typedef HRESULT(*FRIL_SetDMProfileConfigInfo)(HRIL hRil, LPVOID lpContext, DWORD dwExecutor, DWORD dwConfigItem, const RILDMCONFIGINFOVALUE* rciValue);
+// RIL_SetDMProfileConfigInfo
+// In: DWORD, RILDMCONFIGINFOVALUE
+// Async out: none )(status only)
+
+
+////////////////////
+// Location
+////////////////////
+
+// retrieves information about location data available to the phone.
+typedef HRESULT(*FRIL_GetPositionInfo)(HRIL hRil, LPVOID lpContext, DWORD dwExecutor);
+// RIL_COMMAND_GETPOSITIONINFO
+// In: DWORD
+// Async out: RILPOSITIONINFO
+
+// sets the geolocation data )(i.e. civic address and/or {latitude, longitude} position) into modem
+typedef HRESULT(*FRIL_SetGeolocationData)(HRIL hRil, LPVOID lpContext, const RILSETGEOLOCATIONDATAPARAMS* pGeolocationData);
+// RIL_COMMAND_SETGEOLOCATIONDATA
+// In: RILSETGEOLOCATIONDATAPARAMS
+// Async out: none
+
+////////////////////////////////////////////////
+// OEM Field Service and Device-Specific
+////////////////////////////////////////////////
+
+// retrieves information about radio state grouping available from the phone.
+typedef HRESULT(*FRIL_GetRadioStateGroups)(HRIL hRil, LPVOID lpContext, DWORD dwParentGroupId);
+// RIL_COMMAND_GETRADIOSTATEGROUPS
+// In: DWORD
+// Async out: RILRADIOSTATEGROUPS
+
+typedef HRESULT(*FRIL_GetRadioStateDetails)(HRIL hRil, LPVOID lpContext, DWORD dwGroupId, DWORD dwItemId);
+// RIL_COMMAND_GETRADIOSTATEDETAILS
+// In: GETRADIOSTATEDETAILS_PARAMS
+// Async out: RILRADIOSTATEITEMS
+
+typedef HRESULT(*FRIL_SetRadioStateDetails)(HRIL hRil, LPVOID lpContext, const RILRADIOSTATEITEMS* pItems);
+// RIL_COMMAND_SETRADIOSTATEDETAILS
+// In: RILRADIOSTATEITEMS
+// Async out: DWORD
+
+typedef HRESULT(*FRIL_RadioStatePasswordCompare)(HRIL hRil, LPVOID lpContext, const RILRADIOSTATEPASSWORD* lpRspRadioStatePassword);
+// RIL_COMMAND_RADIOSTATEPASSWORDCOMPARE
+// In: RILRADIOSTATEPASSWORD
+// Async out: DWORD
+
+// gets the retry count remaining for a given password entry.
+typedef HRESULT(*FRIL_RadioStateGetPasswordRetryCount)(HRIL hRil, LPVOID lpContext, DWORD dwPasswordId);
+// RIL_COMMAND_RADIOSTATEGETPASSWORDRETRYCOUNT
+// In: DWORD
+// Async out: DWORD
+
+typedef HRESULT(*FRIL_DevSpecific)(HRIL hRil, LPVOID lpContext, const BYTE* lpbParams, DWORD dwSize);
+// RIL_COMMAND_DEVSPECIFIC
+// In: array of BYTE
+// Async out: array of BYTE
+
+typedef HRESULT(*FRIL_SetRFState_V1)(HRIL hRil, LPVOID lpContext, DWORD dwRFState);
+// RIL_COMMAND_SETRFSTATE
+// In: DWORD
+// Async out: none )(Status only)
+
+typedef HRESULT(*FRIL_SetRFState)(HRIL hRil, LPVOID lpContext, const LPRILRFSTATE lpRFState);
+// RIL_COMMAND_SETRFSTATE
+// In: RILRFSATE
+// Async out: none )(Status only)
+
+typedef HRESULT(*FRIL_GetRFState)(HRIL hRil, LPVOID lpContext);
+// RIL_COMMAND_GETRFSTATE
+// In: none
+// Async out: DWORD or RILRFSTATE
+
+typedef HRESULT(*FRIL_GetExecutorFocus)(HRIL hRil, LPVOID lpContext);
+// RIL_COMMAND_GETEXECUTORFOCUS
+// In: none
+// Async out: RILEXECUTORFOCUS
+
+typedef HRESULT(*FRIL_SetExecutorFocus)(HRIL hRil, LPVOID lpContext, BOOL* pfFocusState, DWORD dwExecutorCount);
+// RIL_COMMAND_SETEXECUTORFOCUS
+// In: array of BOOL holding the focus state for all executors and the number of executors.
+// Async out: none )(Status only)
+
+typedef HRESULT(*FRIL_GetEmergencyMode)(HRIL hRil, LPVOID lpContext, DWORD dwExecutor);
+// RIL_COMMAND_GETEMERGENCYMODE
+// In: DWORD
+// Async out: BOOL
+
+typedef HRESULT(*FRIL_GetExecutorRFState)(HRIL hRil, LPVOID lpContext, DWORD dwExecutor);
+// RIL_COMMAND_GETEXECUTORRFSTATE
+// In: DWORD
+// Async out: RILEXECUTORRFSTATE
+
+typedef HRESULT(*FRIL_SetExecutorRFState)(HRIL hRil, LPVOID lpContext, DWORD dwExecutor, BOOL fExecutorRFState);
+// RIL_COMMAND_SETEXECUTORRFSTATE
+// In: RILSETEXECUTORRFSTATEPARAMS
+// Async out: none )(Status only)
+
+typedef HRESULT(*FRIL_EnableModemFilters)(HRIL hRil, LPVOID lpContext, DWORD filterID);
+// RIL_COMMAND_ENABLEMODEMFILTERS
+// In: DWORD
+// Async out: none )(Status only)
+
+typedef HRESULT(*FRIL_DisableModemFilters)(HRIL hRil, LPVOID lpContext, DWORD filterID);
+// RIL_COMMAND_DISABLEMODEMFILTERS
+// In: DWORD
+// Async out: none )(Status only)
+
+typedef HRESULT(*FRIL_StartModemLogs)(HRIL hRil, LPVOID lpContext);
+// RIL_COMMAND_STARTMODEMLOGS
+// In: none
+// Async out: none )(Status only)
+
+typedef HRESULT(*FRIL_StopModemLogs)(HRIL hRil, LPVOID lpContext);
+// RIL_COMMAND_STOPMODEMLOGS
+// In: none
+// Async out: none )(Status only)
+
+typedef HRESULT(*FRIL_DrainModemLogs)(HRIL hRil, LPVOID lpContext);
+// RIL_COMMAND_DRAINMODEMLOGS
+// In: none
+// Async out: none )(Status only)
+
+typedef HRESULT(*FRIL_CancelGetOperatorList)(HRIL hRil, LPVOID lpContext, DWORD dwExecutor);
+// RIL_COMMAND_CANCELGETOPERATORLIST
+// In: DWORD
+// Async out: None )(Status Only)
+
+typedef HRESULT(*FRIL_AvoidCDMASystem)(HRIL hRil, LPVOID lpContext, DWORD dwExecutor, enum RILCDMAAVOIDANCEREQUESTYPE requestType);
+// RIL_COMMAND_AVOIDCDMASYSTEM
+// In: AVOIDCDMASYSTEM PARAMS
+// Async out: None )(Status Only)
+
+typedef HRESULT(*FRIL_SetPSMediaConfiguration)(HRIL hRil, LPVOID lpContext, const LPRILPSMEDIACONFIGURATIONSET pConfigurationSet);
+// RIL_COMMAND_SETPSMEDIACONFIGURATION
+// In: RILPSMEDIACONFIGURATIONSET
+// Async out: RILPSMEDIACONFIGURATIONSET
+
+typedef HRESULT(*FRIL_GetPSMediaConfiguration)(HRIL hRil, LPVOID lpContext, DWORD dwExecutor);
+// RIL_COMMAND_GETPSMEDIACONFIGURATION
+// In: DWORD
+// Async out: RILPSMEDIACONFIGURATIONSET
+
+FRIL_AddCallForwarding RIL_AddCallForwarding;
+FRIL_AvoidCDMASystem RIL_AvoidCDMASystem;
+FRIL_CancelGetOperatorList RIL_CancelGetOperatorList;
+FRIL_CancelSupServiceDataSession RIL_CancelSupServiceDataSession;
+FRIL_ChangeCallBarringPassword RIL_ChangeCallBarringPassword;
+FRIL_ChangeUiccLockPassword RIL_ChangeUiccLockPassword;
+FRIL_CloseUiccLogicalChannel RIL_CloseUiccLogicalChannel;
+FRIL_CloseUiccLogicalChannelGroup RIL_CloseUiccLogicalChannelGroup;
+FRIL_DeactivatePerso RIL_DeactivatePerso;
+FRIL_Deinitialize RIL_Deinitialize;
+FRIL_DeleteAdditionalNumberString RIL_DeleteAdditionalNumberString;
+FRIL_DeleteMsg RIL_DeleteMsg;
+FRIL_DeletePhonebookEntry RIL_DeletePhonebookEntry;
+FRIL_DevSpecific RIL_DevSpecific;
+FRIL_Dial RIL_Dial;
+FRIL_Dial_V1 RIL_Dial_V1;
+FRIL_DisableModemFilters RIL_DisableModemFilters;
+FRIL_DisableNotifications RIL_DisableNotifications;
+FRIL_DrainModemLogs RIL_DrainModemLogs;
+FRIL_EmergencyModeControl RIL_EmergencyModeControl;
+FRIL_EnableModemFilters RIL_EnableModemFilters;
+FRIL_EnableNotifications RIL_EnableNotifications;
+FRIL_EnumerateSlots RIL_EnumerateSlots;
+FRIL_ExchangeUiccAPDU RIL_ExchangeUiccAPDU;
+FRIL_GetAllAdditionalNumberStrings RIL_GetAllAdditionalNumberStrings;
+FRIL_GetAllEmergencyNumbers RIL_GetAllEmergencyNumbers;
+FRIL_GetCallBarringStatus RIL_GetCallBarringStatus;
+FRIL_GetCallForwardingSettings RIL_GetCallForwardingSettings;
+FRIL_GetCallWaitingSettings RIL_GetCallWaitingSettings;
+FRIL_GetCallerIdSettings RIL_GetCallerIdSettings;
+FRIL_GetCardInfo RIL_GetCardInfo;
+FRIL_GetCellBroadcastMsgConfig RIL_GetCellBroadcastMsgConfig;
+FRIL_GetCurrentRegStatus RIL_GetCurrentRegStatus;
+FRIL_GetDMProfileConfigInfo RIL_GetDMProfileConfigInfo;
+FRIL_GetDevCaps RIL_GetDevCaps;
+FRIL_GetDeviceInfo RIL_GetDeviceInfo;
+FRIL_GetDialedIdSettings RIL_GetDialedIdSettings;
+FRIL_GetDriverVersion RIL_GetDriverVersion;
+FRIL_GetEmergencyMode RIL_GetEmergencyMode;
+FRIL_GetEquipmentState RIL_GetEquipmentState;
+FRIL_GetExecutorConfig RIL_GetExecutorConfig;
+FRIL_GetExecutorFocus RIL_GetExecutorFocus;
+FRIL_GetExecutorRFState RIL_GetExecutorRFState;
+FRIL_GetHideConnectedIdSettings RIL_GetHideConnectedIdSettings;
+FRIL_GetHideIdSettings RIL_GetHideIdSettings;
+FRIL_GetIMSI RIL_GetIMSI;
+FRIL_GetIMSStatus RIL_GetIMSStatus;
+FRIL_GetMsgInUiccStatus RIL_GetMsgInUiccStatus;
+FRIL_GetMsgServiceOptions RIL_GetMsgServiceOptions;
+FRIL_GetNotificationFilterState RIL_GetNotificationFilterState;
+FRIL_GetNumberOfModems RIL_GetNumberOfModems;
+FRIL_GetOperatorList RIL_GetOperatorList;
+FRIL_GetPSMediaConfiguration RIL_GetPSMediaConfiguration;
+FRIL_GetPersoDeactivationState RIL_GetPersoDeactivationState;
+FRIL_GetPhonebookOptions RIL_GetPhonebookOptions;
+FRIL_GetPositionInfo RIL_GetPositionInfo;
+FRIL_GetPreferredOperatorList RIL_GetPreferredOperatorList;
+FRIL_GetRFState RIL_GetRFState;
+FRIL_GetRadioConfiguration RIL_GetRadioConfiguration;
+FRIL_GetRadioStateDetails RIL_GetRadioStateDetails;
+FRIL_GetRadioStateGroups RIL_GetRadioStateGroups;
+FRIL_GetSMSC RIL_GetSMSC;
+FRIL_GetSignalQuality RIL_GetSignalQuality;
+FRIL_GetSubscriberNumbers RIL_GetSubscriberNumbers;
+FRIL_GetSystemSelectionPrefs RIL_GetSystemSelectionPrefs;
+//FRIL_GetTerminalCapability RIL_GetTerminalCapability; missing typedef
+FRIL_GetUiccATR RIL_GetUiccATR;
+FRIL_GetUiccAppPersoCheckState RIL_GetUiccAppPersoCheckState;
+FRIL_GetUiccLockState RIL_GetUiccLockState;
+FRIL_GetUiccPRLID RIL_GetUiccPRLID;
+FRIL_GetUiccRecordStatus RIL_GetUiccRecordStatus;
+FRIL_GetUiccServiceLock RIL_GetUiccServiceLock;
+FRIL_GetUiccServiceState RIL_GetUiccServiceState;
+FRIL_GetUiccToolkitProfile RIL_GetUiccToolkitProfile;
+FRIL_Initialize RIL_Initialize;
+FRIL_ManageCalls RIL_ManageCalls;
+FRIL_ManageCalls_V1 RIL_ManageCalls_V1;
+FRIL_ManageCalls_V2 RIL_ManageCalls_V2;
+FRIL_ManageCalls_V3 RIL_ManageCalls_V3;
+FRIL_OpenUiccLogicalChannel RIL_OpenUiccLogicalChannel;
+FRIL_RadioStateGetPasswordRetryCount RIL_RadioStateGetPasswordRetryCount;
+FRIL_RadioStatePasswordCompare RIL_RadioStatePasswordCompare;
+FRIL_ReadMsg RIL_ReadMsg;
+FRIL_ReadPhonebookEntries RIL_ReadPhonebookEntries;
+FRIL_RegisterUiccToolkitService RIL_RegisterUiccToolkitService;
+FRIL_RemoveCallForwarding RIL_RemoveCallForwarding;
+FRIL_ResetModem RIL_ResetModem;
+FRIL_SendDTMF RIL_SendDTMF;
+FRIL_SendFlash RIL_SendFlash;
+FRIL_SendMsg RIL_SendMsg;
+FRIL_SendMsgAck RIL_SendMsgAck;
+FRIL_SendMsgAck_V1 RIL_SendMsgAck_V1;
+FRIL_SendRTT RIL_SendRTT;
+FRIL_SendRestrictedUiccCmd RIL_SendRestrictedUiccCmd;
+FRIL_SendSupServiceData RIL_SendSupServiceData;
+FRIL_SendSupServiceDataResponse RIL_SendSupServiceDataResponse;
+FRIL_SendUiccToolkitCmdResponse RIL_SendUiccToolkitCmdResponse;
+FRIL_SendUiccToolkitEnvelope RIL_SendUiccToolkitEnvelope;
+FRIL_SetCallBarringStatus RIL_SetCallBarringStatus;
+FRIL_SetCallForwardingStatus RIL_SetCallForwardingStatus;
+FRIL_SetCallWaitingStatus RIL_SetCallWaitingStatus;
+FRIL_SetCellBroadcastMsgConfig RIL_SetCellBroadcastMsgConfig;
+FRIL_SetDMProfileConfigInfo RIL_SetDMProfileConfigInfo;
+FRIL_SetEquipmentState RIL_SetEquipmentState;
+FRIL_SetExecutorConfig RIL_SetExecutorConfig;
+FRIL_SetExecutorFocus RIL_SetExecutorFocus;
+FRIL_SetExecutorRFState RIL_SetExecutorRFState;
+FRIL_SetGeolocationData RIL_SetGeolocationData;
+FRIL_SetMsgInUiccStatus RIL_SetMsgInUiccStatus;
+FRIL_SetMsgMemoryStatus RIL_SetMsgMemoryStatus;
+FRIL_SetNotificationFilterState RIL_SetNotificationFilterState;
+FRIL_SetPSMediaConfiguration RIL_SetPSMediaConfiguration;
+FRIL_SetPreferredOperatorList RIL_SetPreferredOperatorList;
+FRIL_SetRFState RIL_SetRFState;
+FRIL_SetRFState_V1 RIL_SetRFState_V1;
+FRIL_SetRadioConfiguration RIL_SetRadioConfiguration;
+FRIL_SetRadioStateDetails RIL_SetRadioStateDetails;
+FRIL_SetSMSC RIL_SetSMSC;
+FRIL_SetSlotPower RIL_SetSlotPower;
+FRIL_SetSystemSelectionPrefs RIL_SetSystemSelectionPrefs;
+FRIL_SetSystemSelectionPrefs_V1 RIL_SetSystemSelectionPrefs_V1;
+//FRIL_SetTerminalCapability RIL_SetTerminalCapability; // missing typedef
+FRIL_SetUiccLockEnabled RIL_SetUiccLockEnabled;
+FRIL_SetUiccServiceState RIL_SetUiccServiceState;
+FRIL_SetUiccToolkitProfile RIL_SetUiccToolkitProfile;
+FRIL_StartDTMF RIL_StartDTMF;
+FRIL_StartModemLogs RIL_StartModemLogs;
+FRIL_StopDTMF RIL_StopDTMF;
+FRIL_StopModemLogs RIL_StopModemLogs;
+FRIL_UnblockUiccLock RIL_UnblockUiccLock;
+FRIL_VerifyUiccLock RIL_VerifyUiccLock;
+FRIL_WatchUiccFileChange RIL_WatchUiccFileChange;
+FRIL_WriteAdditionalNumberString RIL_WriteAdditionalNumberString;
+FRIL_WriteMsg RIL_WriteMsg;
+FRIL_WritePhonebookEntry RIL_WritePhonebookEntry;
+
+
+void InitializeRILFunctions()
+{
+	HMODULE hDll = LoadLibrary(L"rilproxy.fixed.dll");
+
+	RIL_AddCallForwarding = (FRIL_AddCallForwarding)GetProcAddress(hDll, "RIL_AddCallForwarding");
+	RIL_AvoidCDMASystem = (FRIL_AvoidCDMASystem)GetProcAddress(hDll, "RIL_AvoidCDMASystem");
+	RIL_CancelGetOperatorList = (FRIL_CancelGetOperatorList)GetProcAddress(hDll, "RIL_CancelGetOperatorList");
+	RIL_CancelSupServiceDataSession = (FRIL_CancelSupServiceDataSession)GetProcAddress(hDll, "RIL_CancelSupServiceDataSession");
+	RIL_ChangeCallBarringPassword = (FRIL_ChangeCallBarringPassword)GetProcAddress(hDll, "RIL_ChangeCallBarringPassword");
+	RIL_ChangeUiccLockPassword = (FRIL_ChangeUiccLockPassword)GetProcAddress(hDll, "RIL_ChangeUiccLockPassword");
+	RIL_CloseUiccLogicalChannel = (FRIL_CloseUiccLogicalChannel)GetProcAddress(hDll, "RIL_CloseUiccLogicalChannel");
+	RIL_CloseUiccLogicalChannelGroup = (FRIL_CloseUiccLogicalChannelGroup)GetProcAddress(hDll, "RIL_CloseUiccLogicalChannelGroup");
+	RIL_DeactivatePerso = (FRIL_DeactivatePerso)GetProcAddress(hDll, "RIL_DeactivatePerso");
+	RIL_Deinitialize = (FRIL_Deinitialize)GetProcAddress(hDll, "RIL_Deinitialize");
+	RIL_DeleteAdditionalNumberString = (FRIL_DeleteAdditionalNumberString)GetProcAddress(hDll, "RIL_DeleteAdditionalNumberString");
+	RIL_DeleteMsg = (FRIL_DeleteMsg)GetProcAddress(hDll, "RIL_DeleteMsg");
+	RIL_DeletePhonebookEntry = (FRIL_DeletePhonebookEntry)GetProcAddress(hDll, "RIL_DeletePhonebookEntry");
+	RIL_DevSpecific = (FRIL_DevSpecific)GetProcAddress(hDll, "RIL_DevSpecific");
+	RIL_Dial = (FRIL_Dial)GetProcAddress(hDll, "RIL_Dial");
+	RIL_Dial_V1 = (FRIL_Dial_V1)GetProcAddress(hDll, "RIL_Dial_V1");
+	RIL_DisableModemFilters = (FRIL_DisableModemFilters)GetProcAddress(hDll, "RIL_DisableModemFilters");
+	RIL_DisableNotifications = (FRIL_DisableNotifications)GetProcAddress(hDll, "RIL_DisableNotifications");
+	RIL_DrainModemLogs = (FRIL_DrainModemLogs)GetProcAddress(hDll, "RIL_DrainModemLogs");
+	RIL_EmergencyModeControl = (FRIL_EmergencyModeControl)GetProcAddress(hDll, "RIL_EmergencyModeControl");
+	RIL_EnableModemFilters = (FRIL_EnableModemFilters)GetProcAddress(hDll, "RIL_EnableModemFilters");
+	RIL_EnableNotifications = (FRIL_EnableNotifications)GetProcAddress(hDll, "RIL_EnableNotifications");
+	RIL_EnumerateSlots = (FRIL_EnumerateSlots)GetProcAddress(hDll, "RIL_EnumerateSlots");
+	RIL_ExchangeUiccAPDU = (FRIL_ExchangeUiccAPDU)GetProcAddress(hDll, "RIL_ExchangeUiccAPDU");
+	RIL_GetAllAdditionalNumberStrings = (FRIL_GetAllAdditionalNumberStrings)GetProcAddress(hDll, "RIL_GetAllAdditionalNumberStrings");
+	RIL_GetAllEmergencyNumbers = (FRIL_GetAllEmergencyNumbers)GetProcAddress(hDll, "RIL_GetAllEmergencyNumbers");
+	RIL_GetCallBarringStatus = (FRIL_GetCallBarringStatus)GetProcAddress(hDll, "RIL_GetCallBarringStatus");
+	RIL_GetCallForwardingSettings = (FRIL_GetCallForwardingSettings)GetProcAddress(hDll, "RIL_GetCallForwardingSettings");
+	RIL_GetCallWaitingSettings = (FRIL_GetCallWaitingSettings)GetProcAddress(hDll, "RIL_GetCallWaitingSettings");
+	RIL_GetCallerIdSettings = (FRIL_GetCallerIdSettings)GetProcAddress(hDll, "RIL_GetCallerIdSettings");
+	RIL_GetCardInfo = (FRIL_GetCardInfo)GetProcAddress(hDll, "RIL_GetCardInfo");
+	RIL_GetCellBroadcastMsgConfig = (FRIL_GetCellBroadcastMsgConfig)GetProcAddress(hDll, "RIL_GetCellBroadcastMsgConfig");
+	RIL_GetCurrentRegStatus = (FRIL_GetCurrentRegStatus)GetProcAddress(hDll, "RIL_GetCurrentRegStatus");
+	RIL_GetDMProfileConfigInfo = (FRIL_GetDMProfileConfigInfo)GetProcAddress(hDll, "RIL_GetDMProfileConfigInfo");
+	RIL_GetDevCaps = (FRIL_GetDevCaps)GetProcAddress(hDll, "RIL_GetDevCaps");
+	RIL_GetDeviceInfo = (FRIL_GetDeviceInfo)GetProcAddress(hDll, "RIL_GetDeviceInfo");
+	RIL_GetDialedIdSettings = (FRIL_GetDialedIdSettings)GetProcAddress(hDll, "RIL_GetDialedIdSettings");
+	RIL_GetDriverVersion = (FRIL_GetDriverVersion)GetProcAddress(hDll, "RIL_GetDriverVersion");
+	RIL_GetEmergencyMode = (FRIL_GetEmergencyMode)GetProcAddress(hDll, "RIL_GetEmergencyMode");
+	RIL_GetEquipmentState = (FRIL_GetEquipmentState)GetProcAddress(hDll, "RIL_GetEquipmentState");
+	RIL_GetExecutorConfig = (FRIL_GetExecutorConfig)GetProcAddress(hDll, "RIL_GetExecutorConfig");
+	RIL_GetExecutorFocus = (FRIL_GetExecutorFocus)GetProcAddress(hDll, "RIL_GetExecutorFocus");
+	RIL_GetExecutorRFState = (FRIL_GetExecutorRFState)GetProcAddress(hDll, "RIL_GetExecutorRFState");
+	RIL_GetHideConnectedIdSettings = (FRIL_GetHideConnectedIdSettings)GetProcAddress(hDll, "RIL_GetHideConnectedIdSettings");
+	RIL_GetHideIdSettings = (FRIL_GetHideIdSettings)GetProcAddress(hDll, "RIL_GetHideIdSettings");
+	RIL_GetIMSI = (FRIL_GetIMSI)GetProcAddress(hDll, "RIL_GetIMSI");
+	RIL_GetIMSStatus = (FRIL_GetIMSStatus)GetProcAddress(hDll, "RIL_GetIMSStatus");
+	RIL_GetMsgInUiccStatus = (FRIL_GetMsgInUiccStatus)GetProcAddress(hDll, "RIL_GetMsgInUiccStatus");
+	RIL_GetMsgServiceOptions = (FRIL_GetMsgServiceOptions)GetProcAddress(hDll, "RIL_GetMsgServiceOptions");
+	RIL_GetNotificationFilterState = (FRIL_GetNotificationFilterState)GetProcAddress(hDll, "RIL_GetNotificationFilterState");
+	RIL_GetNumberOfModems = (FRIL_GetNumberOfModems)GetProcAddress(hDll, "RIL_GetNumberOfModems");
+	RIL_GetOperatorList = (FRIL_GetOperatorList)GetProcAddress(hDll, "RIL_GetOperatorList");
+	RIL_GetPSMediaConfiguration = (FRIL_GetPSMediaConfiguration)GetProcAddress(hDll, "RIL_GetPSMediaConfiguration");
+	RIL_GetPersoDeactivationState = (FRIL_GetPersoDeactivationState)GetProcAddress(hDll, "RIL_GetPersoDeactivationState");
+	RIL_GetPhonebookOptions = (FRIL_GetPhonebookOptions)GetProcAddress(hDll, "RIL_GetPhonebookOptions");
+	RIL_GetPositionInfo = (FRIL_GetPositionInfo)GetProcAddress(hDll, "RIL_GetPositionInfo");
+	RIL_GetPreferredOperatorList = (FRIL_GetPreferredOperatorList)GetProcAddress(hDll, "RIL_GetPreferredOperatorList");
+	RIL_GetRFState = (FRIL_GetRFState)GetProcAddress(hDll, "RIL_GetRFState");
+	RIL_GetRadioConfiguration = (FRIL_GetRadioConfiguration)GetProcAddress(hDll, "RIL_GetRadioConfiguration");
+	RIL_GetRadioStateDetails = (FRIL_GetRadioStateDetails)GetProcAddress(hDll, "RIL_GetRadioStateDetails");
+	RIL_GetRadioStateGroups = (FRIL_GetRadioStateGroups)GetProcAddress(hDll, "RIL_GetRadioStateGroups");
+	RIL_GetSMSC = (FRIL_GetSMSC)GetProcAddress(hDll, "RIL_GetSMSC");
+	RIL_GetSignalQuality = (FRIL_GetSignalQuality)GetProcAddress(hDll, "RIL_GetSignalQuality");
+	RIL_GetSubscriberNumbers = (FRIL_GetSubscriberNumbers)GetProcAddress(hDll, "RIL_GetSubscriberNumbers");
+	RIL_GetSystemSelectionPrefs = (FRIL_GetSystemSelectionPrefs)GetProcAddress(hDll, "RIL_GetSystemSelectionPrefs");
+	//RIL_GetTerminalCapability = (FRIL_GetTerminalCapability)GetProcAddress(hDll, "RIL_GetTerminalCapability");
+	RIL_GetUiccATR = (FRIL_GetUiccATR)GetProcAddress(hDll, "RIL_GetUiccATR");
+	RIL_GetUiccAppPersoCheckState = (FRIL_GetUiccAppPersoCheckState)GetProcAddress(hDll, "RIL_GetUiccAppPersoCheckState");
+	RIL_GetUiccLockState = (FRIL_GetUiccLockState)GetProcAddress(hDll, "RIL_GetUiccLockState");
+	RIL_GetUiccPRLID = (FRIL_GetUiccPRLID)GetProcAddress(hDll, "RIL_GetUiccPRLID");
+	RIL_GetUiccRecordStatus = (FRIL_GetUiccRecordStatus)GetProcAddress(hDll, "RIL_GetUiccRecordStatus");
+	RIL_GetUiccServiceLock = (FRIL_GetUiccServiceLock)GetProcAddress(hDll, "RIL_GetUiccServiceLock");
+	RIL_GetUiccServiceState = (FRIL_GetUiccServiceState)GetProcAddress(hDll, "RIL_GetUiccServiceState");
+	RIL_GetUiccToolkitProfile = (FRIL_GetUiccToolkitProfile)GetProcAddress(hDll, "RIL_GetUiccToolkitProfile");
+	RIL_Initialize = (FRIL_Initialize)GetProcAddress(hDll, "RIL_Initialize");
+	RIL_ManageCalls = (FRIL_ManageCalls)GetProcAddress(hDll, "RIL_ManageCalls");
+	RIL_ManageCalls_V1 = (FRIL_ManageCalls_V1)GetProcAddress(hDll, "RIL_ManageCalls_V1");
+	RIL_ManageCalls_V2 = (FRIL_ManageCalls_V2)GetProcAddress(hDll, "RIL_ManageCalls_V2");
+	RIL_ManageCalls_V3 = (FRIL_ManageCalls_V3)GetProcAddress(hDll, "RIL_ManageCalls_V3");
+	RIL_OpenUiccLogicalChannel = (FRIL_OpenUiccLogicalChannel)GetProcAddress(hDll, "RIL_OpenUiccLogicalChannel");
+	RIL_RadioStateGetPasswordRetryCount = (FRIL_RadioStateGetPasswordRetryCount)GetProcAddress(hDll, "RIL_RadioStateGetPasswordRetryCount");
+	RIL_RadioStatePasswordCompare = (FRIL_RadioStatePasswordCompare)GetProcAddress(hDll, "RIL_RadioStatePasswordCompare");
+	RIL_ReadMsg = (FRIL_ReadMsg)GetProcAddress(hDll, "RIL_ReadMsg");
+	RIL_ReadPhonebookEntries = (FRIL_ReadPhonebookEntries)GetProcAddress(hDll, "RIL_ReadPhonebookEntries");
+	RIL_RegisterUiccToolkitService = (FRIL_RegisterUiccToolkitService)GetProcAddress(hDll, "RIL_RegisterUiccToolkitService");
+	RIL_RemoveCallForwarding = (FRIL_RemoveCallForwarding)GetProcAddress(hDll, "RIL_RemoveCallForwarding");
+	RIL_ResetModem = (FRIL_ResetModem)GetProcAddress(hDll, "RIL_ResetModem");
+	RIL_SendDTMF = (FRIL_SendDTMF)GetProcAddress(hDll, "RIL_SendDTMF");
+	RIL_SendFlash = (FRIL_SendFlash)GetProcAddress(hDll, "RIL_SendFlash");
+	RIL_SendMsg = (FRIL_SendMsg)GetProcAddress(hDll, "RIL_SendMsg");
+	RIL_SendMsgAck = (FRIL_SendMsgAck)GetProcAddress(hDll, "RIL_SendMsgAck");
+	RIL_SendMsgAck_V1 = (FRIL_SendMsgAck_V1)GetProcAddress(hDll, "RIL_SendMsgAck_V1");
+	RIL_SendRTT = (FRIL_SendRTT)GetProcAddress(hDll, "RIL_SendRTT");
+	RIL_SendRestrictedUiccCmd = (FRIL_SendRestrictedUiccCmd)GetProcAddress(hDll, "RIL_SendRestrictedUiccCmd");
+	RIL_SendSupServiceData = (FRIL_SendSupServiceData)GetProcAddress(hDll, "RIL_SendSupServiceData");
+	RIL_SendSupServiceDataResponse = (FRIL_SendSupServiceDataResponse)GetProcAddress(hDll, "RIL_SendSupServiceDataResponse");
+	RIL_SendUiccToolkitCmdResponse = (FRIL_SendUiccToolkitCmdResponse)GetProcAddress(hDll, "RIL_SendUiccToolkitCmdResponse");
+	RIL_SendUiccToolkitEnvelope = (FRIL_SendUiccToolkitEnvelope)GetProcAddress(hDll, "RIL_SendUiccToolkitEnvelope");
+	RIL_SetCallBarringStatus = (FRIL_SetCallBarringStatus)GetProcAddress(hDll, "RIL_SetCallBarringStatus");
+	RIL_SetCallForwardingStatus = (FRIL_SetCallForwardingStatus)GetProcAddress(hDll, "RIL_SetCallForwardingStatus");
+	RIL_SetCallWaitingStatus = (FRIL_SetCallWaitingStatus)GetProcAddress(hDll, "RIL_SetCallWaitingStatus");
+	RIL_SetCellBroadcastMsgConfig = (FRIL_SetCellBroadcastMsgConfig)GetProcAddress(hDll, "RIL_SetCellBroadcastMsgConfig");
+	RIL_SetDMProfileConfigInfo = (FRIL_SetDMProfileConfigInfo)GetProcAddress(hDll, "RIL_SetDMProfileConfigInfo");
+	RIL_SetEquipmentState = (FRIL_SetEquipmentState)GetProcAddress(hDll, "RIL_SetEquipmentState");
+	RIL_SetExecutorConfig = (FRIL_SetExecutorConfig)GetProcAddress(hDll, "RIL_SetExecutorConfig");
+	RIL_SetExecutorFocus = (FRIL_SetExecutorFocus)GetProcAddress(hDll, "RIL_SetExecutorFocus");
+	RIL_SetExecutorRFState = (FRIL_SetExecutorRFState)GetProcAddress(hDll, "RIL_SetExecutorRFState");
+	RIL_SetGeolocationData = (FRIL_SetGeolocationData)GetProcAddress(hDll, "RIL_SetGeolocationData");
+	RIL_SetMsgInUiccStatus = (FRIL_SetMsgInUiccStatus)GetProcAddress(hDll, "RIL_SetMsgInUiccStatus");
+	RIL_SetMsgMemoryStatus = (FRIL_SetMsgMemoryStatus)GetProcAddress(hDll, "RIL_SetMsgMemoryStatus");
+	RIL_SetNotificationFilterState = (FRIL_SetNotificationFilterState)GetProcAddress(hDll, "RIL_SetNotificationFilterState");
+	RIL_SetPSMediaConfiguration = (FRIL_SetPSMediaConfiguration)GetProcAddress(hDll, "RIL_SetPSMediaConfiguration");
+	RIL_SetPreferredOperatorList = (FRIL_SetPreferredOperatorList)GetProcAddress(hDll, "RIL_SetPreferredOperatorList");
+	RIL_SetRFState = (FRIL_SetRFState)GetProcAddress(hDll, "RIL_SetRFState");
+	RIL_SetRFState_V1 = (FRIL_SetRFState_V1)GetProcAddress(hDll, "RIL_SetRFState_V1");
+	RIL_SetRadioConfiguration = (FRIL_SetRadioConfiguration)GetProcAddress(hDll, "RIL_SetRadioConfiguration");
+	RIL_SetRadioStateDetails = (FRIL_SetRadioStateDetails)GetProcAddress(hDll, "RIL_SetRadioStateDetails");
+	RIL_SetSMSC = (FRIL_SetSMSC)GetProcAddress(hDll, "RIL_SetSMSC");
+	RIL_SetSlotPower = (FRIL_SetSlotPower)GetProcAddress(hDll, "RIL_SetSlotPower");
+	RIL_SetSystemSelectionPrefs = (FRIL_SetSystemSelectionPrefs)GetProcAddress(hDll, "RIL_SetSystemSelectionPrefs");
+	RIL_SetSystemSelectionPrefs_V1 = (FRIL_SetSystemSelectionPrefs_V1)GetProcAddress(hDll, "RIL_SetSystemSelectionPrefs_V1");
+	//RIL_SetTerminalCapability = (FRIL_SetTerminalCapability)GetProcAddress(hDll, "RIL_SetTerminalCapability");
+	RIL_SetUiccLockEnabled = (FRIL_SetUiccLockEnabled)GetProcAddress(hDll, "RIL_SetUiccLockEnabled");
+	RIL_SetUiccServiceState = (FRIL_SetUiccServiceState)GetProcAddress(hDll, "RIL_SetUiccServiceState");
+	RIL_SetUiccToolkitProfile = (FRIL_SetUiccToolkitProfile)GetProcAddress(hDll, "RIL_SetUiccToolkitProfile");
+	RIL_StartDTMF = (FRIL_StartDTMF)GetProcAddress(hDll, "RIL_StartDTMF");
+	RIL_StartModemLogs = (FRIL_StartModemLogs)GetProcAddress(hDll, "RIL_StartModemLogs");
+	RIL_StopDTMF = (FRIL_StopDTMF)GetProcAddress(hDll, "RIL_StopDTMF");
+	RIL_StopModemLogs = (FRIL_StopModemLogs)GetProcAddress(hDll, "RIL_StopModemLogs");
+	RIL_UnblockUiccLock = (FRIL_UnblockUiccLock)GetProcAddress(hDll, "RIL_UnblockUiccLock");
+	RIL_VerifyUiccLock = (FRIL_VerifyUiccLock)GetProcAddress(hDll, "RIL_VerifyUiccLock");
+	RIL_WatchUiccFileChange = (FRIL_WatchUiccFileChange)GetProcAddress(hDll, "RIL_WatchUiccFileChange");
+	RIL_WriteAdditionalNumberString = (FRIL_WriteAdditionalNumberString)GetProcAddress(hDll, "RIL_WriteAdditionalNumberString");
+	RIL_WriteMsg = (FRIL_WriteMsg)GetProcAddress(hDll, "RIL_WriteMsg");
+	RIL_WritePhonebookEntry = (FRIL_WritePhonebookEntry)GetProcAddress(hDll, "RIL_WritePhonebookEntry");
+}
+
+#pragma endregion
+
+
 
 HANDLE ResultEvent;
 
@@ -43,7 +1198,7 @@ void CALLBACK RILNotifyCallback(
 
 }
 
-BOOL GetDriverVersion(DWORD* version)
+BOOL GetDriverVersion(DWORD dwMinVersion, DWORD dwMaxVersion, DWORD* version)
 {
 	std::cout << "Gathering Driver Version" << std::endl;
 
@@ -58,10 +1213,7 @@ BOOL GetDriverVersion(DWORD* version)
 		return FALSE;
 	}
 
-	BYTE buffer[] = { 0x0, 0x0, 0x2, 0x0, 0x0, 0x0, 0x32, 0x0 };
-	RILGETDRIVERVERSIONPARAMS params = *(RILGETDRIVERVERSIONPARAMS*)buffer;
-
-	hr = RIL_GetDriverVersion(hRil, &context, params.dwMinVersion, params.dwMaxVersion);
+	hr = RIL_GetDriverVersion(hRil, &context, dwMinVersion, dwMaxVersion);
 	if (hr != ERROR_SUCCESS)
 	{
 		return FALSE;
@@ -483,9 +1635,9 @@ BOOL GetCurrentRegStatus(DWORD dwExecutor, RILREGSTATUSINFO* regstatusinfo)
 	return TRUE;
 }
 
-BOOL SetExecutorRFState(DWORD dwExecutor, RILEXECUTORRFSTATE* executorrfstate)
+BOOL GetExecutorRFState(DWORD dwExecutor, RILEXECUTORRFSTATE* executorrfstate)
 {
-	std::cout << "Setting executor RF state" << std::endl;
+	std::cout << "Getting executor RF state" << std::endl;
 
 	DWORD enabledNotifications[] = { RIL_NCLASS_FUNCRESULT, RIL_NCLASS_NOTIFICATIONS };
 	wchar_t clientName[] = L"RILClient";
@@ -498,7 +1650,7 @@ BOOL SetExecutorRFState(DWORD dwExecutor, RILEXECUTORRFSTATE* executorrfstate)
 		return FALSE;
 	}
 
-	hr = RIL_GetExecutorRFState(hRil, &context, dwExecutor); //WTF??? RIL_GetExecutorRFState is in reality RIL_SetExecutorRFState when calling IOControl and RIL_GetExecutorRFState is RIL_ResetModem
+	hr = RIL_GetExecutorRFState(hRil, &context, dwExecutor);
 	if (hr != ERROR_SUCCESS)
 	{
 		return FALSE;
@@ -533,57 +1685,9 @@ BOOL SetExecutorRFState(DWORD dwExecutor, RILEXECUTORRFSTATE* executorrfstate)
 	return TRUE;
 }
 
-BOOL OpenUiccLogicalChannel()
-{
-	std::cout << "OpenUiccLogicalChannel" << std::endl;
-
-	DWORD enabledNotifications[] = { RIL_NCLASS_FUNCRESULT, RIL_NCLASS_NOTIFICATIONS };
-	wchar_t clientName[] = L"RILClient";
-	HRIL hRil;
-	DWORD context = 20;
-
-	HRESULT hr = RIL_Initialize(0, RILResultCallback, RILNotifyCallback, enabledNotifications, 2, &context, clientName, &hRil);
-	if (hr != ERROR_SUCCESS)
-	{
-		return FALSE;
-	}
-
-	hr = RIL_OpenUiccLogicalChannel(hRil, &context, 0, 0, 0, NULL, 0);
-	if (hr != ERROR_SUCCESS)
-	{
-		return FALSE;
-	}
-
-	std::cout << "Waiting" << std::endl;
-	DWORD dwWaitResult = WaitForSingleObject(ResultEvent, INFINITE);
-	ResetEvent(ResultEvent);
-
-	std::cout << "Result: " << std::hex << RdwCode << std::endl;
-
-	if (*(DWORD*)RusersContext != context)
-	{
-		std::cout << "This result wasn't for us it seems" << std::endl;
-		return FALSE;
-	}
-
-	if (RcbData < sizeof(RILUICCRECORDSTATUS))
-	{
-		std::cout << "This result isn't expected" << std::endl;
-		return FALSE;
-	}
-
-	hr = RIL_Deinitialize(hRil);
-	if (hr != ERROR_SUCCESS)
-	{
-		std::cout << "Unable to close handle" << std::endl;
-	}
-
-	return TRUE;
-}
-
 BOOL GetUiccRecordStatus(const RILUICCFILEPATH* lpFilePath, RILUICCRECORDSTATUS* recordstatus)
 {
-	std::cout << "GetUiccRecordStatus" << std::endl;
+	std::cout << "Getting UICC Record Status" << std::endl;
 
 	DWORD enabledNotifications[] = { RIL_NCLASS_FUNCRESULT, RIL_NCLASS_NOTIFICATIONS };
 	wchar_t clientName[] = L"RILClient";
@@ -633,7 +1737,7 @@ BOOL GetUiccRecordStatus(const RILUICCFILEPATH* lpFilePath, RILUICCRECORDSTATUS*
 
 BOOL SetExecutorConfig(DWORD dwExecutor, const RILEXECUTORCONFIG* lpRilExecutorConfig)
 {
-	std::cout << "SetExecutorConfig" << std::endl;
+	std::cout << "Setting Executor Config" << std::endl;
 
 	DWORD enabledNotifications[] = { RIL_NCLASS_FUNCRESULT, RIL_NCLASS_NOTIFICATIONS };
 	wchar_t clientName[] = L"RILClient";
@@ -679,9 +1783,9 @@ BOOL SetExecutorConfig(DWORD dwExecutor, const RILEXECUTORCONFIG* lpRilExecutorC
 	return TRUE;
 }
 
-BOOL SendRestrictedUiccCmd1()
+BOOL SendRestrictedUiccCmd(RILUICCCOMMAND dwCommand, const RILUICCCMDPARAMETERS* lpParameters, const BYTE* lpbData, DWORD dwSize, const RILUICCLOCKCREDENTIAL* lpLockVerification)
 {
-	std::cout << "SendRestrictedUiccCmd1" << std::endl;
+	std::cout << "Send Restricted Uicc Cmd" << std::endl;
 
 	DWORD enabledNotifications[] = { RIL_NCLASS_FUNCRESULT, RIL_NCLASS_NOTIFICATIONS };
 	wchar_t clientName[] = L"RILClient";
@@ -694,47 +1798,7 @@ BOOL SendRestrictedUiccCmd1()
 		return FALSE;
 	}
 
-	// gave up parsing this so...
-	                  //cbSize               //dwCommand         //rscpParameters
-	BYTE buffer[] = {   0x44, 0x1, 0x0, 0x0, 0x1, 0x0, 0x0, 0x0, 0x2c, 0x0, 0x0, 0x0, 0x9, 0x0, 0x0, 0x0,
-						0x1, 0x0, 0x0, 0x0, 0x2, 0x0, 0x0, 0x0, 0x0, 0x3f, 0x5, 0x2f, 0xd1, 0x1, 0x0, 0x0,
-		                                                                           //fHasLockVerification 
-						0xf0, 0x8, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 
-
-					//  hUiccApp
-						0x0, 0x0,
-		                        //dwKeyRef          //szPassword
-						0xa, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
-						0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
-						0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
-						0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
-						0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
-						0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
-						0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
-						0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
-						0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
-						0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
-						0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
-						0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
-						0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
-						0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
-						0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
-						0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
-		                                                                //dwDataSize        //pData
-						0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
-						0x0, 0x0, 0x0, 0x0 };
-
-	/*
-	
-
-
-
-
-	*/
-
-	RILSENDRESTRICTEDUICCCMDPARAMS params = *(RILSENDRESTRICTEDUICCCMDPARAMS*)buffer;
-
-	hr = RIL_SendRestrictedUiccCmd(hRil, &context, RIL_UICCCMD_READBINARY, &params.rscpParameters, params.pbData, params.dwDataSize, &params.lockVerification);
+	hr = RIL_SendRestrictedUiccCmd(hRil, &context, dwCommand, lpParameters, lpbData, dwSize, lpLockVerification);
 	if (hr != ERROR_SUCCESS)
 	{
 		return FALSE;
@@ -767,9 +1831,9 @@ BOOL SendRestrictedUiccCmd1()
 	return TRUE;
 }
 
-BOOL ResetModem(DWORD dwExecutor, BOOL fExecutorRFState)
+BOOL SetExecutorRFState(DWORD dwExecutor, BOOL fExecutorRFState)
 {
-	std::cout << "Resetting modem" << std::endl;
+	std::cout << "Setting Executor RF State" << std::endl;
 
 	DWORD enabledNotifications[] = { RIL_NCLASS_FUNCRESULT, RIL_NCLASS_NOTIFICATIONS };
 	wchar_t clientName[] = L"RILClient";
@@ -782,7 +1846,7 @@ BOOL ResetModem(DWORD dwExecutor, BOOL fExecutorRFState)
 		return FALSE;
 	}
 
-	hr = RIL_SetExecutorRFState(hRil, &context, dwExecutor, fExecutorRFState); //WTF??? RIL_GetExecutorRFState is in reality RIL_SetExecutorRFState when calling IOControl and RIL_GetExecutorRFState is RIL_ResetModem
+	hr = RIL_SetExecutorRFState(hRil, &context, dwExecutor, fExecutorRFState);
 	if (hr != ERROR_SUCCESS)
 	{
 		return FALSE;
@@ -879,6 +1943,102 @@ BOOL SetSlotPower(DWORD dwSlotIndex, BOOL fPowerOn)
 	}
 
 	hr = RIL_SetSlotPower(hRil, &context, dwSlotIndex, fPowerOn);
+	if (hr != ERROR_SUCCESS)
+	{
+		return FALSE;
+	}
+
+	std::cout << "Waiting" << std::endl;
+	DWORD dwWaitResult = WaitForSingleObject(ResultEvent, INFINITE);
+	ResetEvent(ResultEvent);
+
+	std::cout << "Result: " << std::hex << RdwCode << std::endl;
+
+	if (*(DWORD*)RusersContext != context)
+	{
+		std::cout << "This result wasn't for us it seems" << std::endl;
+		return FALSE;
+	}
+
+	if (RcbData != 0)
+	{
+		std::cout << "This result isn't expected" << std::endl;
+		return FALSE;
+	}
+
+	hr = RIL_Deinitialize(hRil);
+	if (hr != ERROR_SUCCESS)
+	{
+		std::cout << "Unable to close handle" << std::endl;
+	}
+
+	return TRUE;
+}
+
+BOOL SetDMProfileConfigInfo(DWORD dwExecutor, DWORD dwConfigItem, const RILDMCONFIGINFOVALUE* rciValue)
+{
+	std::cout << "Setting DM Profile Config Information" << std::endl;
+
+	DWORD enabledNotifications[] = { RIL_NCLASS_FUNCRESULT, RIL_NCLASS_NOTIFICATIONS };
+	wchar_t clientName[] = L"RILClient";
+	HRIL hRil;
+	DWORD context = 20;
+
+	HRESULT hr = RIL_Initialize(0, RILResultCallback, RILNotifyCallback, enabledNotifications, 2, &context, clientName, &hRil);
+	if (hr != ERROR_SUCCESS)
+	{
+		return FALSE;
+	}
+
+	hr = RIL_SetDMProfileConfigInfo(hRil, &context, dwExecutor, dwConfigItem, rciValue);
+	if (hr != ERROR_SUCCESS)
+	{
+		return FALSE;
+	}
+
+	std::cout << "Waiting" << std::endl;
+	DWORD dwWaitResult = WaitForSingleObject(ResultEvent, INFINITE);
+	ResetEvent(ResultEvent);
+
+	std::cout << "Result: " << std::hex << RdwCode << std::endl;
+
+	if (*(DWORD*)RusersContext != context)
+	{
+		std::cout << "This result wasn't for us it seems" << std::endl;
+		return FALSE;
+	}
+
+	if (RcbData != 0)
+	{
+		std::cout << "This result isn't expected" << std::endl;
+		return FALSE;
+	}
+
+	hr = RIL_Deinitialize(hRil);
+	if (hr != ERROR_SUCCESS)
+	{
+		std::cout << "Unable to close handle" << std::endl;
+	}
+
+	return TRUE;
+}
+
+BOOL SetCellBroadcastMsgConfig(HUICCAPP hUiccApp, const RILCBMSGCONFIG* lpCbMsgConfigInfo)
+{
+	std::cout << "Setting Cellular Broadcast Message Configuration" << std::endl;
+
+	DWORD enabledNotifications[] = { RIL_NCLASS_FUNCRESULT, RIL_NCLASS_NOTIFICATIONS };
+	wchar_t clientName[] = L"RILClient";
+	HRIL hRil;
+	DWORD context = 20;
+
+	HRESULT hr = RIL_Initialize(0, RILResultCallback, RILNotifyCallback, enabledNotifications, 2, &context, clientName, &hRil);
+	if (hr != ERROR_SUCCESS)
+	{
+		return FALSE;
+	}
+
+	hr = RIL_SetCellBroadcastMsgConfig(hRil, &context, hUiccApp, lpCbMsgConfigInfo);
 	if (hr != ERROR_SUCCESS)
 	{
 		return FALSE;
@@ -1217,9 +2377,89 @@ void DisplayCurrentRegStatus()
 	std::cout << std::endl;
 }
 
+void DisplayAllEmergencyNumbers()
+{
+	BYTE* emergencynumberslist = nullptr;
+	BOOL result = GetAllEmergencyNumbers(&emergencynumberslist);
+	if (result)
+	{
+		DWORD dwRilENSize = *(DWORD*)(emergencynumberslist + 4);
+		std::cout << "Number of emergency numbers: " << dwRilENSize << std::endl;
+
+		std::cout << std::endl;
+		DWORD size = 0;
+
+		for (DWORD i = 0; i < dwRilENSize; i++)
+		{
+			RILEMERGENCYNUMBER en = *(RILEMERGENCYNUMBER*)(emergencynumberslist + sizeof(DWORD) * 2 + size);
+			size += en.cbSize;
+
+			// do parammask
+			std::cout << "Executor: " << en.dwExecutor << std::endl;
+			std::cout << "Size: " << en.cbSize << std::endl;
+
+			std::cout << "Number: ";
+			wprintf_s(en.wszEmergencyNumber);
+			std::cout << std::endl;
+
+			std::cout << "Category: ";
+			switch (en.dwCategory)
+			{
+			case RILEMERGENCYNUMBERCATEGORY::RIL_ENUM_ALL:
+			{
+				std::cout << "all" << std::endl;
+				break;
+			}
+			case RILEMERGENCYNUMBERCATEGORY::RIL_ENUM_AMBULANCE:
+			{
+				std::cout << "ambulance" << std::endl;
+				break;
+			}
+			case RILEMERGENCYNUMBERCATEGORY::RIL_ENUM_AUTO_ECALL:
+			{
+				std::cout << "auto ecall" << std::endl;
+				break;
+			}
+			case RILEMERGENCYNUMBERCATEGORY::RIL_ENUM_FIRE_BRIGADE:
+			{
+				std::cout << "fire brigade" << std::endl;
+				break;
+			}
+			case RILEMERGENCYNUMBERCATEGORY::RIL_ENUM_MANUAL_ECALL:
+			{
+				std::cout << "manual ecall" << std::endl;
+				break;
+			}
+			case RILEMERGENCYNUMBERCATEGORY::RIL_ENUM_MARINE_GUARD:
+			{
+				std::cout << "marine guard" << std::endl;
+				break;
+			}
+			case RILEMERGENCYNUMBERCATEGORY::RIL_ENUM_MOUNTAIN_RESCUE:
+			{
+				std::cout << "mountain rescue" << std::endl;
+				break;
+			}
+			case RILEMERGENCYNUMBERCATEGORY::RIL_ENUM_POLICE:
+			{
+				std::cout << "police" << std::endl;
+				break;
+			}
+			default:
+			{
+				std::cout << "unspecified" << std::endl;
+			}
+			}
+			std::cout << std::endl;
+		}
+	}
+	std::cout << std::endl;
+}
+
 int main()
 {
 	PrintBanner();
+	InitializeRILFunctions();
 
 	// Initialize the event that we use to get notified of the results of every call
 	ResultEvent = CreateEvent(
@@ -1229,7 +2469,7 @@ int main()
 		L"ResultEvent");
 
 	DWORD version = 0;
-	BOOL result = GetDriverVersion(&version);
+	BOOL result = GetDriverVersion(0x20000, 0x320000, &version);
 	if (result)
 	{
 		std::cout << "RIL Driver version is: 0x" << std::hex << version << std::endl;
@@ -1346,7 +2586,12 @@ int main()
 				for (DWORD i = 0; i < cardinfo.dwNumApps; i++)
 				{
 					RILUICCAPPINFO appinfo = cardinfo.AppInfo[i];
-					// todo;
+
+					/*std::cout << "App name: ";
+					printf(appinfo.cszAppName);
+					std::cout << std::endl;*/
+
+					// todo proper parsing workaround as struct size varies...;
 				}
 			}
 		}
@@ -1379,81 +2624,7 @@ int main()
 	}
 	std::cout << std::endl;
 
-	BYTE* emergencynumberslist = nullptr;
-	result = GetAllEmergencyNumbers(&emergencynumberslist);
-	if (result)
-	{
-		DWORD dwRilENSize = *(DWORD*)(emergencynumberslist + 4);
-		std::cout << "Number of emergency numbers: " << dwRilENSize << std::endl;
-
-		std::cout << std::endl;
-		DWORD size = 0;
-
-		for (DWORD i = 0; i < dwRilENSize; i++)
-		{
-			RILEMERGENCYNUMBER en = *(RILEMERGENCYNUMBER*)(emergencynumberslist + sizeof(DWORD) * 2 + size);
-			size += en.cbSize;
-
-			// do parammask
-			std::cout << "Executor: " << en.dwExecutor << std::endl;
-			std::cout << "Size: " << en.cbSize << std::endl;
-
-			std::cout << "Number: ";
-			wprintf_s(en.wszEmergencyNumber);
-			std::cout << std::endl;
-
-			std::cout << "Category: ";
-			switch (en.dwCategory)
-			{
-			case RILEMERGENCYNUMBERCATEGORY::RIL_ENUM_ALL:
-			{
-				std::cout << "all" << std::endl;
-				break;
-			}
-			case RILEMERGENCYNUMBERCATEGORY::RIL_ENUM_AMBULANCE:
-			{
-				std::cout << "ambulance" << std::endl;
-				break;
-			}
-			case RILEMERGENCYNUMBERCATEGORY::RIL_ENUM_AUTO_ECALL:
-			{
-				std::cout << "auto ecall" << std::endl;
-				break;
-			}
-			case RILEMERGENCYNUMBERCATEGORY::RIL_ENUM_FIRE_BRIGADE:
-			{
-				std::cout << "fire brigade" << std::endl;
-				break;
-			}
-			case RILEMERGENCYNUMBERCATEGORY::RIL_ENUM_MANUAL_ECALL:
-			{
-				std::cout << "manual ecall" << std::endl;
-				break;
-			}
-			case RILEMERGENCYNUMBERCATEGORY::RIL_ENUM_MARINE_GUARD:
-			{
-				std::cout << "marine guard" << std::endl;
-				break;
-			}
-			case RILEMERGENCYNUMBERCATEGORY::RIL_ENUM_MOUNTAIN_RESCUE:
-			{
-				std::cout << "mountain rescue" << std::endl;
-				break;
-			}
-			case RILEMERGENCYNUMBERCATEGORY::RIL_ENUM_POLICE:
-			{
-				std::cout << "police" << std::endl;
-				break;
-			}
-			default:
-			{
-				std::cout << "unspecified" << std::endl;
-			}
-			}
-			std::cout << std::endl;
-		}
-	}
-	std::cout << std::endl;
+	DisplayAllEmergencyNumbers();
 
 	result = GetDevCaps(1);
 	if (result)
@@ -1465,11 +2636,11 @@ int main()
 	DisplayCurrentRegStatus();
 
 	//getsignalquality 0
-	//getpositioninfo 0
-	//enablemodemfilters 0 (not implemented in wmril, normal)
+	//RIL_COMMAND_GETIMSSTATUS 0
+	//RIL_COMMAND_GETPSMEDIACONFIGURATION 0 (not implemented in wmril, normal)
 
 	RILEXECUTORRFSTATE executorrfstate;
-	result = SetExecutorRFState(0, &executorrfstate);
+	result = GetExecutorRFState(0, &executorrfstate);
 	if (result)
 	{
 		std::cout << "Ok." << std::endl;
@@ -1488,7 +2659,7 @@ int main()
 	}
 	std::cout << std::endl;
 
-	//OpenUiccLogicalChannel(); no idea why this is broken for now
+	//RIL_COMMAND_GETUICCATR
 
 	RILUICCFILEPATH filePath = { 0x00000001lu, 0x00000002lu, { 0x3f00, 0x2f05, 0xd101, 0x0000, 0x08f0, 0x0000, 0x0000, 0x0000 } };
 	RILUICCRECORDSTATUS recordstatus;
@@ -1501,17 +2672,105 @@ int main()
 
 	RILEXECUTORCONFIG RilExecutorConfig = { 0x14, 1, 1, { 0x00010002, 0 } };
 	result = SetExecutorConfig(0, &RilExecutorConfig);
+	if (result)
 	{
 		std::cout << "Ok." << std::endl;
 	}
 	std::cout << std::endl;
 
-	// GetPositionInfo 0
+	// RIL_COMMAND_GETIMSSTATUS 0
 
-	//RIL_COMMAND_GETMSGINUICCSTATUS hugebuffer
+	BYTE buffer2[] = {
+		0x2, 0x0, 0x1, 0x0, 0xc0, 0x4, 0x0, 0x0, 0x3, 0x0, 0x0, 0x0, 0x6, 0x0, 0x0, 0x0,
+		0x1, 0x0, 0x0, 0x0, 0x32, 0x0, 0x0, 0x0, 0x32, 0x0, 0x0, 0x0, 0x1, 0x0, 0x0, 0x0,
+		0x7, 0x2, 0x0, 0x0, 0x7, 0x2, 0x0, 0x0, 0x1, 0x0, 0x0, 0x0, 0x97, 0x3, 0x0, 0x0,
+		0x97, 0x3, 0x0, 0x0, 0x1, 0x0, 0x0, 0x0, 0x0, 0x11, 0x0, 0x0, 0x2, 0x11, 0x0, 0x0,
+		0x1, 0x0, 0x0, 0x0, 0x12, 0x11, 0x0, 0x0, 0x1d, 0x11, 0x0, 0x0, 0x1, 0x0, 0x0, 0x0,
+		0x1f, 0x11, 0x0, 0x0, 0x2a, 0x11, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0
+	};
+
+	RILSETCELLBROADCASTMSGCONFIGPARAMS params2 = *(RILSETCELLBROADCASTMSGCONFIGPARAMS*)buffer2;
+
+	result = SetCellBroadcastMsgConfig(params2.hUiccApp, &params2.rmCBConfig);
+	if (result)
+	{
+		std::cout << "Ok." << std::endl;
+	}
+	std::cout << std::endl;
+
 	//GETSUBSCRIBERNUMBERS  0x2, 0x0, 0x1, 0x0
-
-	// GETIMSI 0x2, 0x0, 0x1, 0x0
+	//GETIMSI 0x2, 0x0, 0x1, 0x0
 
 	WCHAR* model = nullptr;
 	lengthstr = 0;
@@ -1525,118 +2784,69 @@ int main()
 	}
 	std::cout << std::endl;
 
-	result = SendRestrictedUiccCmd1();
+	
+	// gave up parsing this so...
+	                  //cbSize               //dwCommand         //rscpParameters
+	BYTE buffer[] = {   0x44, 0x1, 0x0, 0x0, 0x1, 0x0, 0x0, 0x0, 0x2c, 0x0, 0x0, 0x0, 0x9, 0x0, 0x0, 0x0,
+						0x1, 0x0, 0x0, 0x0, 0x2, 0x0, 0x0, 0x0, 0x0, 0x3f, 0x5, 0x2f, 0xd1, 0x1, 0x0, 0x0,
+						                                                           //fHasLockVerification 
+						0xf0, 0x8, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 
+
+					//  hUiccApp
+						0x0, 0x0,
+						        //dwKeyRef          //szPassword
+						0xa, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+						0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+						0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+						0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+						0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+						0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+						0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+						0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+						0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+						0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+						0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+						0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+						0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+						0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+						0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+						0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+						                                                //dwDataSize        //pData
+						0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+						0x0, 0x0, 0x0, 0x0 };
+
+	RILSENDRESTRICTEDUICCCMDPARAMS params = *(RILSENDRESTRICTEDUICCCMDPARAMS*)buffer;
+
+	result = SendRestrictedUiccCmd(params.dwCommand, &params.rscpParameters, params.pbData, params.dwDataSize, &params.lockVerification);
 	if (result)
 	{
 		std::cout << "Ok." << std::endl;
 	}
 	std::cout << std::endl;
 
-	emergencynumberslist = nullptr;
-	result = GetAllEmergencyNumbers(&emergencynumberslist);
+	DisplayAllEmergencyNumbers();
+
+	//watchuiccfilechange
+	//watchuiccfilechange
+	//watchuiccfilechange
+	//watchuiccfilechange
+
+	result = SetExecutorRFState(0, TRUE);
 	if (result)
 	{
-		DWORD dwRilENSize = *(DWORD*)(emergencynumberslist + 4);
-		std::cout << "Number of emergency numbers: " << dwRilENSize << std::endl;
-
-		std::cout << std::endl;
-		DWORD size = 0;
-
-		for (DWORD i = 0; i < dwRilENSize; i++)
-		{
-			RILEMERGENCYNUMBER en = *(RILEMERGENCYNUMBER*)(emergencynumberslist + sizeof(DWORD) * 2 + size);
-			size += en.cbSize;
-
-			// do parammask
-			std::cout << "Executor: " << en.dwExecutor << std::endl;
-			std::cout << "Size: " << en.cbSize << std::endl;
-
-			std::cout << "Number: ";
-			wprintf_s(en.wszEmergencyNumber);
-			std::cout << std::endl;
-
-			std::cout << "Category: ";
-			switch (en.dwCategory)
-			{
-			case RILEMERGENCYNUMBERCATEGORY::RIL_ENUM_ALL:
-			{
-				std::cout << "all" << std::endl;
-				break;
-			}
-			case RILEMERGENCYNUMBERCATEGORY::RIL_ENUM_AMBULANCE:
-			{
-				std::cout << "ambulance" << std::endl;
-				break;
-			}
-			case RILEMERGENCYNUMBERCATEGORY::RIL_ENUM_AUTO_ECALL:
-			{
-				std::cout << "auto ecall" << std::endl;
-				break;
-			}
-			case RILEMERGENCYNUMBERCATEGORY::RIL_ENUM_FIRE_BRIGADE:
-			{
-				std::cout << "fire brigade" << std::endl;
-				break;
-			}
-			case RILEMERGENCYNUMBERCATEGORY::RIL_ENUM_MANUAL_ECALL:
-			{
-				std::cout << "manual ecall" << std::endl;
-				break;
-			}
-			case RILEMERGENCYNUMBERCATEGORY::RIL_ENUM_MARINE_GUARD:
-			{
-				std::cout << "marine guard" << std::endl;
-				break;
-			}
-			case RILEMERGENCYNUMBERCATEGORY::RIL_ENUM_MOUNTAIN_RESCUE:
-			{
-				std::cout << "mountain rescue" << std::endl;
-				break;
-			}
-			case RILEMERGENCYNUMBERCATEGORY::RIL_ENUM_POLICE:
-			{
-				std::cout << "police" << std::endl;
-				break;
-			}
-			default:
-			{
-				std::cout << "unspecified" << std::endl;
-			}
-			}
-			std::cout << std::endl;
-		}
+		std::cout << "Ok" << std::endl;
 	}
 	std::cout << std::endl;
-
-	//watchuiccfilechange
-	//watchuiccfilechange
-	//watchuiccfilechange
-	//watchuiccfilechange
-
-
-	std::cout << "Waiting 5 seconds..." << std::endl;
-	Sleep(5000);
-
-
-	std::cout << "Drumroll..." << std::endl;
-	result = ResetModem(0, TRUE);
-	if (result)
-	{
-		std::cout << "Modem reset with settings saved!" << std::endl;
-	}
-	std::cout << std::endl;
-
-	std::cout << "Waiting 5 seconds..." << std::endl;
-	Sleep(5000);
 
 	result = SetEquipmentState(2);
+	if (result)
 	{
 		std::cout << "Ok." << std::endl;
 	}
 	std::cout << std::endl;
 
 	//getuicclockstate
-	//getuiccappersocheckstate
+	//GETUICCAPPPERSOCHECKSTATE
 
 	WCHAR* revision = nullptr;
 	lengthstr = 0;
@@ -1650,11 +2860,9 @@ int main()
 	}
 	std::cout << std::endl;
 
-
 	//watchuicc
 	//watchuicc
 	//getuicclockstate
-
 
 	serialnumbergw = nullptr;
 	lengthstr = 0;
@@ -1684,6 +2892,7 @@ int main()
 
 
 	result = SetSlotPower(0, TRUE);
+	if (result)
 	{
 		std::cout << "Ok." << std::endl;
 	}
@@ -1716,6 +2925,7 @@ int main()
 	//getuiccrecordstatus
 	//getuiccrecordstatus
 
+
 	//sendrestricteduiccmd bigbuffer
 	//sendrestricteduiccmd bigbuffer
 	//sendrestricteduiccmd bigbuffer
@@ -1733,15 +2943,110 @@ int main()
 	//sendrestricteduiccmd bigbuffer
 
 	//getimsi
-	//getmsginuiccstatus
 
-	DisplayCurrentRegStatus();
+	BYTE buffer3[] = {
+		0x2, 0x0, 0x1, 0x0, 0xc0, 0x4, 0x0, 0x0, 0x3, 0x0, 0x0, 0x0, 0x6, 0x0, 0x0, 0x0,
+		0x1, 0x0, 0x0, 0x0, 0x32, 0x0, 0x0, 0x0, 0x32, 0x0, 0x0, 0x0, 0x1, 0x0, 0x0, 0x0,
+		0x7, 0x2, 0x0, 0x0, 0x7, 0x2, 0x0, 0x0, 0x1, 0x0, 0x0, 0x0, 0x97, 0x3, 0x0, 0x0,
+		0x97, 0x3, 0x0, 0x0, 0x1, 0x0, 0x0, 0x0, 0x0, 0x11, 0x0, 0x0, 0x2, 0x11, 0x0, 0x0,
+		0x1, 0x0, 0x0, 0x0, 0x12, 0x11, 0x0, 0x0, 0x1d, 0x11, 0x0, 0x0, 0x1, 0x0, 0x0, 0x0,
+		0x1f, 0x11, 0x0, 0x0, 0x2a, 0x11, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0
+	};
 
-	result = SetSlotPower(0, TRUE);
+	RILSETCELLBROADCASTMSGCONFIGPARAMS params3 = *(RILSETCELLBROADCASTMSGCONFIGPARAMS*)buffer3;
+
+	result = SetCellBroadcastMsgConfig(params3.hUiccApp, &params3.rmCBConfig);
+	if (result)
 	{
 		std::cout << "Ok." << std::endl;
 	}
 	std::cout << std::endl;
 
-	//writeadditionalnumberstring
+	DisplayCurrentRegStatus();
+
+	result = SetSlotPower(0, TRUE);
+	if (result)
+	{
+		std::cout << "Ok." << std::endl;
+	}
+	std::cout << std::endl;
+
+	RILDMCONFIGINFOVALUE additional = { 0x210, RILDMCONFIGINFOTYPE::RIL_DMCV_TYPE_BOOLEAN };
+	result = SetDMProfileConfigInfo(0, 0x20, &additional);
+	if (result)
+	{
+		std::cout << "Ok." << std::endl;
+	}
+	std::cout << std::endl;
 }
