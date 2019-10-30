@@ -3,7 +3,7 @@
 
 #include <iostream>
 #include <Windows.h>
-#include <rilapitypes.h>
+#include "C:/Program Files (x86)/Windows Kits/10/Include/10.0.18995.0/um/rilapitypes.h"
 
 
 #pragma region RILImports
@@ -1018,7 +1018,7 @@ FRIL_WritePhonebookEntry RIL_WritePhonebookEntry;
 
 void InitializeRILFunctions()
 {
-	HMODULE hDll = LoadLibrary(L"rilproxy.fixed.dll");
+	HMODULE hDll = LoadLibrary(L"rilproxy.dll");
 
 	RIL_AddCallForwarding = (FRIL_AddCallForwarding)GetProcAddress(hDll, "RIL_AddCallForwarding");
 	RIL_AvoidCDMASystem = (FRIL_AvoidCDMASystem)GetProcAddress(hDll, "RIL_AvoidCDMASystem");
