@@ -1159,7 +1159,7 @@ void InitializeRILFunctions()
 
 #pragma endregion
 
-
+#pragma region Function implementations
 
 HANDLE ResultEvent;
 
@@ -1200,7 +1200,7 @@ void CALLBACK RILNotifyCallback(
 
 BOOL GetDriverVersion(DWORD dwMinVersion, DWORD dwMaxVersion, DWORD* version)
 {
-	std::cout << "Gathering Driver Version" << std::endl;
+	std::cout << "[Function Implementation] " << "Gathering Driver Version" << std::endl;
 
 	DWORD enabledNotifications[] = { RIL_NCLASS_FUNCRESULT, RIL_NCLASS_NOTIFICATIONS };
 	wchar_t clientName[] = L"RILClient";
@@ -1219,21 +1219,21 @@ BOOL GetDriverVersion(DWORD dwMinVersion, DWORD dwMaxVersion, DWORD* version)
 		return FALSE;
 	}
 
-	std::cout << "Waiting" << std::endl;
+	std::cout << "[Function Implementation] " << "Waiting for the RIL function to return a result via our callback." << std::endl;
 	DWORD dwWaitResult = WaitForSingleObject(ResultEvent, INFINITE);
 	ResetEvent(ResultEvent);
 
-	std::cout << "Result: " << std::hex << RdwCode << std::endl;
+	std::cout << "[Function Implementation] " << "Result: " << std::hex << RdwCode << std::endl;
 
 	if (*(DWORD*)RusersContext != context)
 	{
-		std::cout << "This result wasn't for us it seems" << std::endl;
+		std::cout << "[Function Implementation] " << "The returned result isn't for us." << std::endl;
 		return FALSE;
 	}
 
 	if (RcbData != sizeof(DWORD))
 	{
-		std::cout << "This result isn't expected" << std::endl;
+		std::cout << "[Function Implementation] " << "The size of the returned result is not the size we expected." << std::endl;
 		return FALSE;
 	}
 
@@ -1242,7 +1242,7 @@ BOOL GetDriverVersion(DWORD dwMinVersion, DWORD dwMaxVersion, DWORD* version)
 	hr = RIL_Deinitialize(hRil);
 	if (hr != ERROR_SUCCESS)
 	{
-		std::cout << "Unable to close handle" << std::endl;
+		std::cout << "[Function Implementation] " << "Unable to close handle" << std::endl;
 	}
 
 	return TRUE;
@@ -1250,7 +1250,7 @@ BOOL GetDriverVersion(DWORD dwMinVersion, DWORD dwMaxVersion, DWORD* version)
 
 BOOL GetDevCaps(DWORD dwCapsType)
 {
-	std::cout << "Gathering Device Capabilities" << std::endl;
+	std::cout << "[Function Implementation] " << "Gathering Device Capabilities" << std::endl;
 
 	DWORD enabledNotifications[] = { RIL_NCLASS_FUNCRESULT, RIL_NCLASS_NOTIFICATIONS };
 	wchar_t clientName[] = L"RILClient";
@@ -1269,22 +1269,22 @@ BOOL GetDevCaps(DWORD dwCapsType)
 		return FALSE;
 	}
 
-	std::cout << "Waiting" << std::endl;
+	std::cout << "[Function Implementation] " << "Waiting for the RIL function to return a result via our callback." << std::endl;
 	DWORD dwWaitResult = WaitForSingleObject(ResultEvent, INFINITE);
 	ResetEvent(ResultEvent);
 
-	std::cout << "Result: " << std::hex << RdwCode << std::endl;
+	std::cout << "[Function Implementation] " << "Result: " << std::hex << RdwCode << std::endl;
 
 	if (*(DWORD*)RusersContext != context)
 	{
-		std::cout << "This result wasn't for us it seems" << std::endl;
+		std::cout << "[Function Implementation] " << "The returned result isn't for us." << std::endl;
 		return FALSE;
 	}
 
 	hr = RIL_Deinitialize(hRil);
 	if (hr != ERROR_SUCCESS)
 	{
-		std::cout << "Unable to close handle" << std::endl;
+		std::cout << "[Function Implementation] " << "Unable to close handle" << std::endl;
 	}
 
 	return TRUE;
@@ -1292,7 +1292,7 @@ BOOL GetDevCaps(DWORD dwCapsType)
 
 BOOL GetRadioConfiguration(DWORD* radioConfiguration)
 {
-	std::cout << "Gathering Radio Configuration" << std::endl;
+	std::cout << "[Function Implementation] " << "Gathering Radio Configuration" << std::endl;
 
 	DWORD enabledNotifications[] = { RIL_NCLASS_FUNCRESULT, RIL_NCLASS_NOTIFICATIONS };
 	wchar_t clientName[] = L"RILClient";
@@ -1311,21 +1311,21 @@ BOOL GetRadioConfiguration(DWORD* radioConfiguration)
 		return FALSE;
 	}
 
-	std::cout << "Waiting" << std::endl;
+	std::cout << "[Function Implementation] " << "Waiting for the RIL function to return a result via our callback." << std::endl;
 	DWORD dwWaitResult = WaitForSingleObject(ResultEvent, INFINITE);
 	ResetEvent(ResultEvent);
 
-	std::cout << "Result: " << std::hex << RdwCode << std::endl;
+	std::cout << "[Function Implementation] " << "Result: " << std::hex << RdwCode << std::endl;
 
 	if (*(DWORD*)RusersContext != context)
 	{
-		std::cout << "This result wasn't for us it seems" << std::endl;
+		std::cout << "[Function Implementation] " << "The returned result isn't for us." << std::endl;
 		return FALSE;
 	}
 
 	if (RcbData != sizeof(DWORD))
 	{
-		std::cout << "This result isn't expected" << std::endl;
+		std::cout << "[Function Implementation] " << "The size of the returned result is not the size we expected." << std::endl;
 		return FALSE;
 	}
 
@@ -1334,7 +1334,7 @@ BOOL GetRadioConfiguration(DWORD* radioConfiguration)
 	hr = RIL_Deinitialize(hRil);
 	if (hr != ERROR_SUCCESS)
 	{
-		std::cout << "Unable to close handle" << std::endl;
+		std::cout << "[Function Implementation] " << "Unable to close handle" << std::endl;
 	}
 
 	return TRUE;
@@ -1342,7 +1342,7 @@ BOOL GetRadioConfiguration(DWORD* radioConfiguration)
 
 BOOL GetDeviceInfo(DWORD dwExecutor, RILDEVICEINFORMATION dwDeviceInformation, WCHAR** result, DWORD* length)
 {
-	std::cout << "Gathering Device Information" << std::endl;
+	std::cout << "[Function Implementation] " << "Gathering Device Information" << std::endl;
 
 	DWORD enabledNotifications[] = { RIL_NCLASS_FUNCRESULT, RIL_NCLASS_NOTIFICATIONS };
 	wchar_t clientName[] = L"RILClient";
@@ -1361,15 +1361,15 @@ BOOL GetDeviceInfo(DWORD dwExecutor, RILDEVICEINFORMATION dwDeviceInformation, W
 		return FALSE;
 	}
 
-	std::cout << "Waiting" << std::endl;
+	std::cout << "[Function Implementation] " << "Waiting for the RIL function to return a result via our callback." << std::endl;
 	DWORD dwWaitResult = WaitForSingleObject(ResultEvent, INFINITE);
 	ResetEvent(ResultEvent);
 
-	std::cout << "Result: " << std::hex << RdwCode << std::endl;
+	std::cout << "[Function Implementation] " << "Result: " << std::hex << RdwCode << std::endl;
 
 	if (*(DWORD*)RusersContext != context)
 	{
-		std::cout << "This result wasn't for us it seems" << std::endl;
+		std::cout << "[Function Implementation] " << "The returned result isn't for us." << std::endl;
 		return FALSE;
 	}
 
@@ -1379,7 +1379,7 @@ BOOL GetDeviceInfo(DWORD dwExecutor, RILDEVICEINFORMATION dwDeviceInformation, W
 	hr = RIL_Deinitialize(hRil);
 	if (hr != ERROR_SUCCESS)
 	{
-		std::cout << "Unable to close handle" << std::endl;
+		std::cout << "[Function Implementation] " << "Unable to close handle" << std::endl;
 	}
 
 	return TRUE;
@@ -1387,7 +1387,7 @@ BOOL GetDeviceInfo(DWORD dwExecutor, RILDEVICEINFORMATION dwDeviceInformation, W
 
 BOOL EnumerateSlots(RILUICCSLOTINFO* slotinfo)
 {
-	std::cout << "Enumerating slots" << std::endl;
+	std::cout << "[Function Implementation] " << "Enumerating slots" << std::endl;
 
 	DWORD enabledNotifications[] = { RIL_NCLASS_FUNCRESULT, RIL_NCLASS_NOTIFICATIONS };
 	wchar_t clientName[] = L"RILClient";
@@ -1406,21 +1406,21 @@ BOOL EnumerateSlots(RILUICCSLOTINFO* slotinfo)
 		return FALSE;
 	}
 
-	std::cout << "Waiting" << std::endl;
+	std::cout << "[Function Implementation] " << "Waiting for the RIL function to return a result via our callback." << std::endl;
 	DWORD dwWaitResult = WaitForSingleObject(ResultEvent, INFINITE);
 	ResetEvent(ResultEvent);
 
-	std::cout << "Result: " << std::hex << RdwCode << std::endl;
+	std::cout << "[Function Implementation] " << "Result: " << std::hex << RdwCode << std::endl;
 
 	if (*(DWORD*)RusersContext != context)
 	{
-		std::cout << "This result wasn't for us it seems" << std::endl;
+		std::cout << "[Function Implementation] " << "The returned result isn't for us." << std::endl;
 		return FALSE;
 	}
 
 	if (RcbData < sizeof(DWORD) * 4)
 	{
-		std::cout << "This result isn't expected" << std::endl;
+		std::cout << "[Function Implementation] " << "The size of the returned result is not the size we expected." << std::endl;
 		return FALSE;
 	}
 
@@ -1429,7 +1429,7 @@ BOOL EnumerateSlots(RILUICCSLOTINFO* slotinfo)
 	hr = RIL_Deinitialize(hRil);
 	if (hr != ERROR_SUCCESS)
 	{
-		std::cout << "Unable to close handle" << std::endl;
+		std::cout << "[Function Implementation] " << "Unable to close handle" << std::endl;
 	}
 
 	return TRUE;
@@ -1437,7 +1437,7 @@ BOOL EnumerateSlots(RILUICCSLOTINFO* slotinfo)
 
 BOOL GetCardInfo(DWORD dwSlotIndex, RILUICCCARDINFO* cardinfo)
 {
-	std::cout << "Getting Card info" << std::endl;
+	std::cout << "[Function Implementation] " << "Getting Card info" << std::endl;
 
 	DWORD enabledNotifications[] = { RIL_NCLASS_FUNCRESULT, RIL_NCLASS_NOTIFICATIONS };
 	wchar_t clientName[] = L"RILClient";
@@ -1456,21 +1456,21 @@ BOOL GetCardInfo(DWORD dwSlotIndex, RILUICCCARDINFO* cardinfo)
 		return FALSE;
 	}
 
-	std::cout << "Waiting" << std::endl;
+	std::cout << "[Function Implementation] " << "Waiting for the RIL function to return a result via our callback." << std::endl;
 	DWORD dwWaitResult = WaitForSingleObject(ResultEvent, INFINITE);
 	ResetEvent(ResultEvent);
 
-	std::cout << "Result: " << std::hex << RdwCode << std::endl;
+	std::cout << "[Function Implementation] " << "Result: " << std::hex << RdwCode << std::endl;
 
 	if (*(DWORD*)RusersContext != context)
 	{
-		std::cout << "This result wasn't for us it seems" << std::endl;
+		std::cout << "[Function Implementation] " << "The returned result isn't for us." << std::endl;
 		return FALSE;
 	}
 
 	if (RcbData < sizeof(DWORD) * 3 + sizeof(BOOL) + sizeof(BYTE) * 10)
 	{
-		std::cout << "This result isn't expected" << std::endl;
+		std::cout << "[Function Implementation] " << "The size of the returned result is not the size we expected." << std::endl;
 		return FALSE;
 	}
 
@@ -1479,7 +1479,7 @@ BOOL GetCardInfo(DWORD dwSlotIndex, RILUICCCARDINFO* cardinfo)
 	hr = RIL_Deinitialize(hRil);
 	if (hr != ERROR_SUCCESS)
 	{
-		std::cout << "Unable to close handle" << std::endl;
+		std::cout << "[Function Implementation] " << "Unable to close handle" << std::endl;
 	}
 
 	return TRUE;
@@ -1487,7 +1487,7 @@ BOOL GetCardInfo(DWORD dwSlotIndex, RILUICCCARDINFO* cardinfo)
 
 BOOL GetEquipmentState(RILEQUIPMENTSTATE* equipmentstate)
 {
-	std::cout << "Getting Equipment state" << std::endl;
+	std::cout << "[Function Implementation] " << "Getting Equipment state" << std::endl;
 
 	DWORD enabledNotifications[] = { RIL_NCLASS_FUNCRESULT, RIL_NCLASS_NOTIFICATIONS };
 	wchar_t clientName[] = L"RILClient";
@@ -1506,21 +1506,21 @@ BOOL GetEquipmentState(RILEQUIPMENTSTATE* equipmentstate)
 		return FALSE;
 	}
 
-	std::cout << "Waiting" << std::endl;
+	std::cout << "[Function Implementation] " << "Waiting for the RIL function to return a result via our callback." << std::endl;
 	DWORD dwWaitResult = WaitForSingleObject(ResultEvent, INFINITE);
 	ResetEvent(ResultEvent);
 
-	std::cout << "Result: " << std::hex << RdwCode << std::endl;
+	std::cout << "[Function Implementation] " << "Result: " << std::hex << RdwCode << std::endl;
 
 	if (*(DWORD*)RusersContext != context)
 	{
-		std::cout << "This result wasn't for us it seems" << std::endl;
+		std::cout << "[Function Implementation] " << "The returned result isn't for us." << std::endl;
 		return FALSE;
 	}
 
 	if (RcbData != sizeof(DWORD))
 	{
-		std::cout << "This result isn't expected" << std::endl;
+		std::cout << "[Function Implementation] " << "The size of the returned result is not the size we expected." << std::endl;
 		return FALSE;
 	}
 
@@ -1529,7 +1529,7 @@ BOOL GetEquipmentState(RILEQUIPMENTSTATE* equipmentstate)
 	hr = RIL_Deinitialize(hRil);
 	if (hr != ERROR_SUCCESS)
 	{
-		std::cout << "Unable to close handle" << std::endl;
+		std::cout << "[Function Implementation] " << "Unable to close handle" << std::endl;
 	}
 
 	return TRUE;
@@ -1537,7 +1537,7 @@ BOOL GetEquipmentState(RILEQUIPMENTSTATE* equipmentstate)
 
 BOOL GetAllEmergencyNumbers(BYTE** emergencynumberslist)
 {
-	std::cout << "Getting all emergency numbers" << std::endl;
+	std::cout << "[Function Implementation] " << "Getting all emergency numbers" << std::endl;
 
 	DWORD enabledNotifications[] = { RIL_NCLASS_FUNCRESULT, RIL_NCLASS_NOTIFICATIONS };
 	wchar_t clientName[] = L"RILClient";
@@ -1556,21 +1556,21 @@ BOOL GetAllEmergencyNumbers(BYTE** emergencynumberslist)
 		return FALSE;
 	}
 
-	std::cout << "Waiting" << std::endl;
+	std::cout << "[Function Implementation] " << "Waiting for the RIL function to return a result via our callback." << std::endl;
 	DWORD dwWaitResult = WaitForSingleObject(ResultEvent, INFINITE);
 	ResetEvent(ResultEvent);
 
-	std::cout << "Result: " << std::hex << RdwCode << std::endl;
+	std::cout << "[Function Implementation] " << "Result: " << std::hex << RdwCode << std::endl;
 
 	if (*(DWORD*)RusersContext != context)
 	{
-		std::cout << "This result wasn't for us it seems" << std::endl;
+		std::cout << "[Function Implementation] " << "The returned result isn't for us." << std::endl;
 		return FALSE;
 	}
 
 	if (RcbData < sizeof(DWORD) * 2)
 	{
-		std::cout << "This result isn't expected" << std::endl;
+		std::cout << "[Function Implementation] " << "The size of the returned result is not the size we expected." << std::endl;
 		return FALSE;
 	}
 
@@ -1579,7 +1579,7 @@ BOOL GetAllEmergencyNumbers(BYTE** emergencynumberslist)
 	hr = RIL_Deinitialize(hRil);
 	if (hr != ERROR_SUCCESS)
 	{
-		std::cout << "Unable to close handle" << std::endl;
+		std::cout << "[Function Implementation] " << "Unable to close handle" << std::endl;
 	}
 
 	return TRUE;
@@ -1587,7 +1587,7 @@ BOOL GetAllEmergencyNumbers(BYTE** emergencynumberslist)
 
 BOOL GetCurrentRegStatus(DWORD dwExecutor, RILREGSTATUSINFO* regstatusinfo)
 {
-	std::cout << "Getting current registration status" << std::endl;
+	std::cout << "[Function Implementation] " << "Getting current registration status" << std::endl;
 
 	DWORD enabledNotifications[] = { RIL_NCLASS_FUNCRESULT, RIL_NCLASS_NOTIFICATIONS };
 	wchar_t clientName[] = L"RILClient";
@@ -1606,21 +1606,21 @@ BOOL GetCurrentRegStatus(DWORD dwExecutor, RILREGSTATUSINFO* regstatusinfo)
 		return FALSE;
 	}
 
-	std::cout << "Waiting" << std::endl;
+	std::cout << "[Function Implementation] " << "Waiting for the RIL function to return a result via our callback." << std::endl;
 	DWORD dwWaitResult = WaitForSingleObject(ResultEvent, INFINITE);
 	ResetEvent(ResultEvent);
 
-	std::cout << "Result: " << std::hex << RdwCode << std::endl;
+	std::cout << "[Function Implementation] " << "Result: " << std::hex << RdwCode << std::endl;
 
 	if (*(DWORD*)RusersContext != context)
 	{
-		std::cout << "This result wasn't for us it seems" << std::endl;
+		std::cout << "[Function Implementation] " << "The returned result isn't for us." << std::endl;
 		return FALSE;
 	}
 
 	if (RcbData < sizeof(RILREGSTATUSINFO))
 	{
-		std::cout << "This result isn't expected" << std::endl;
+		std::cout << "[Function Implementation] " << "The size of the returned result is not the size we expected." << std::endl;
 		return FALSE;
 	}
 
@@ -1629,7 +1629,7 @@ BOOL GetCurrentRegStatus(DWORD dwExecutor, RILREGSTATUSINFO* regstatusinfo)
 	hr = RIL_Deinitialize(hRil);
 	if (hr != ERROR_SUCCESS)
 	{
-		std::cout << "Unable to close handle" << std::endl;
+		std::cout << "[Function Implementation] " << "Unable to close handle" << std::endl;
 	}
 
 	return TRUE;
@@ -1637,7 +1637,7 @@ BOOL GetCurrentRegStatus(DWORD dwExecutor, RILREGSTATUSINFO* regstatusinfo)
 
 BOOL GetExecutorRFState(DWORD dwExecutor, RILEXECUTORRFSTATE* executorrfstate)
 {
-	std::cout << "Getting executor RF state" << std::endl;
+	std::cout << "[Function Implementation] " << "Getting executor RF state" << std::endl;
 
 	DWORD enabledNotifications[] = { RIL_NCLASS_FUNCRESULT, RIL_NCLASS_NOTIFICATIONS };
 	wchar_t clientName[] = L"RILClient";
@@ -1656,21 +1656,21 @@ BOOL GetExecutorRFState(DWORD dwExecutor, RILEXECUTORRFSTATE* executorrfstate)
 		return FALSE;
 	}
 
-	std::cout << "Waiting" << std::endl;
+	std::cout << "[Function Implementation] " << "Waiting for the RIL function to return a result via our callback." << std::endl;
 	DWORD dwWaitResult = WaitForSingleObject(ResultEvent, INFINITE);
 	ResetEvent(ResultEvent);
 
-	std::cout << "Result: " << std::hex << RdwCode << std::endl;
+	std::cout << "[Function Implementation] " << "Result: " << std::hex << RdwCode << std::endl;
 
 	if (*(DWORD*)RusersContext != context)
 	{
-		std::cout << "This result wasn't for us it seems" << std::endl;
+		std::cout << "[Function Implementation] " << "The returned result isn't for us." << std::endl;
 		return FALSE;
 	}
 
 	if (RcbData < sizeof(RILEXECUTORRFSTATE))
 	{
-		std::cout << "This result isn't expected" << std::endl;
+		std::cout << "[Function Implementation] " << "The size of the returned result is not the size we expected." << std::endl;
 		return FALSE;
 	}
 
@@ -1679,7 +1679,7 @@ BOOL GetExecutorRFState(DWORD dwExecutor, RILEXECUTORRFSTATE* executorrfstate)
 	hr = RIL_Deinitialize(hRil);
 	if (hr != ERROR_SUCCESS)
 	{
-		std::cout << "Unable to close handle" << std::endl;
+		std::cout << "[Function Implementation] " << "Unable to close handle" << std::endl;
 	}
 
 	return TRUE;
@@ -1687,7 +1687,7 @@ BOOL GetExecutorRFState(DWORD dwExecutor, RILEXECUTORRFSTATE* executorrfstate)
 
 BOOL GetUiccRecordStatus(const RILUICCFILEPATH* lpFilePath, RILUICCRECORDSTATUS* recordstatus)
 {
-	std::cout << "Getting UICC Record Status" << std::endl;
+	std::cout << "[Function Implementation] " << "Getting UICC Record Status" << std::endl;
 
 	DWORD enabledNotifications[] = { RIL_NCLASS_FUNCRESULT, RIL_NCLASS_NOTIFICATIONS };
 	wchar_t clientName[] = L"RILClient";
@@ -1706,21 +1706,21 @@ BOOL GetUiccRecordStatus(const RILUICCFILEPATH* lpFilePath, RILUICCRECORDSTATUS*
 		return FALSE;
 	}
 
-	std::cout << "Waiting" << std::endl;
+	std::cout << "[Function Implementation] " << "Waiting for the RIL function to return a result via our callback." << std::endl;
 	DWORD dwWaitResult = WaitForSingleObject(ResultEvent, INFINITE);
 	ResetEvent(ResultEvent);
 
-	std::cout << "Result: " << std::hex << RdwCode << std::endl;
+	std::cout << "[Function Implementation] " << "Result: " << std::hex << RdwCode << std::endl;
 
 	if (*(DWORD*)RusersContext != context)
 	{
-		std::cout << "This result wasn't for us it seems" << std::endl;
+		std::cout << "[Function Implementation] " << "The returned result isn't for us." << std::endl;
 		return FALSE;
 	}
 
 	if (RcbData < sizeof(RILUICCRECORDSTATUS))
 	{
-		std::cout << "This result isn't expected" << std::endl;
+		std::cout << "[Function Implementation] " << "The size of the returned result is not the size we expected." << std::endl;
 		return FALSE;
 	}
 
@@ -1729,7 +1729,7 @@ BOOL GetUiccRecordStatus(const RILUICCFILEPATH* lpFilePath, RILUICCRECORDSTATUS*
 	hr = RIL_Deinitialize(hRil);
 	if (hr != ERROR_SUCCESS)
 	{
-		std::cout << "Unable to close handle" << std::endl;
+		std::cout << "[Function Implementation] " << "Unable to close handle" << std::endl;
 	}
 
 	return TRUE;
@@ -1737,7 +1737,7 @@ BOOL GetUiccRecordStatus(const RILUICCFILEPATH* lpFilePath, RILUICCRECORDSTATUS*
 
 BOOL SetExecutorConfig(DWORD dwExecutor, const RILEXECUTORCONFIG* lpRilExecutorConfig)
 {
-	std::cout << "Setting Executor Config" << std::endl;
+	std::cout << "[Function Implementation] " << "Setting Executor Config" << std::endl;
 
 	DWORD enabledNotifications[] = { RIL_NCLASS_FUNCRESULT, RIL_NCLASS_NOTIFICATIONS };
 	wchar_t clientName[] = L"RILClient";
@@ -1756,28 +1756,28 @@ BOOL SetExecutorConfig(DWORD dwExecutor, const RILEXECUTORCONFIG* lpRilExecutorC
 		return FALSE;
 	}
 
-	std::cout << "Waiting" << std::endl;
+	std::cout << "[Function Implementation] " << "Waiting for the RIL function to return a result via our callback." << std::endl;
 	DWORD dwWaitResult = WaitForSingleObject(ResultEvent, INFINITE);
 	ResetEvent(ResultEvent);
 
-	std::cout << "Result: " << std::hex << RdwCode << std::endl;
+	std::cout << "[Function Implementation] " << "Result: " << std::hex << RdwCode << std::endl;
 
 	if (*(DWORD*)RusersContext != context)
 	{
-		std::cout << "This result wasn't for us it seems" << std::endl;
+		std::cout << "[Function Implementation] " << "The returned result isn't for us." << std::endl;
 		return FALSE;
 	}
 
 	if (RcbData != 0)
 	{
-		std::cout << "This result isn't expected" << std::endl;
+		std::cout << "[Function Implementation] " << "The size of the returned result is not the size we expected." << std::endl;
 		return FALSE;
 	}
 
 	hr = RIL_Deinitialize(hRil);
 	if (hr != ERROR_SUCCESS)
 	{
-		std::cout << "Unable to close handle" << std::endl;
+		std::cout << "[Function Implementation] " << "Unable to close handle" << std::endl;
 	}
 
 	return TRUE;
@@ -1785,7 +1785,7 @@ BOOL SetExecutorConfig(DWORD dwExecutor, const RILEXECUTORCONFIG* lpRilExecutorC
 
 BOOL SendRestrictedUiccCmd(RILUICCCOMMAND dwCommand, const RILUICCCMDPARAMETERS* lpParameters, const BYTE* lpbData, DWORD dwSize, const RILUICCLOCKCREDENTIAL* lpLockVerification)
 {
-	std::cout << "Send Restricted Uicc Cmd" << std::endl;
+	std::cout << "[Function Implementation] " << "Sending Restricted Uicc Cmd" << std::endl;
 
 	DWORD enabledNotifications[] = { RIL_NCLASS_FUNCRESULT, RIL_NCLASS_NOTIFICATIONS };
 	wchar_t clientName[] = L"RILClient";
@@ -1804,28 +1804,28 @@ BOOL SendRestrictedUiccCmd(RILUICCCOMMAND dwCommand, const RILUICCCMDPARAMETERS*
 		return FALSE;
 	}
 
-	std::cout << "Waiting" << std::endl;
+	std::cout << "[Function Implementation] " << "Waiting for the RIL function to return a result via our callback." << std::endl;
 	DWORD dwWaitResult = WaitForSingleObject(ResultEvent, INFINITE);
 	ResetEvent(ResultEvent);
 
-	std::cout << "Result: " << std::hex << RdwCode << std::endl;
+	std::cout << "[Function Implementation] " << "Result: " << std::hex << RdwCode << std::endl;
 
 	if (*(DWORD*)RusersContext != context)
 	{
-		std::cout << "This result wasn't for us it seems" << std::endl;
+		std::cout << "[Function Implementation] " << "The returned result isn't for us." << std::endl;
 		return FALSE;
 	}
 
 	if (RcbData < sizeof(RILUICCRESPONSE))
 	{
-		std::cout << "This result isn't expected" << std::endl;
+		std::cout << "[Function Implementation] " << "The size of the returned result is not the size we expected." << std::endl;
 		return FALSE;
 	}
 
 	hr = RIL_Deinitialize(hRil);
 	if (hr != ERROR_SUCCESS)
 	{
-		std::cout << "Unable to close handle" << std::endl;
+		std::cout << "[Function Implementation] " << "Unable to close handle" << std::endl;
 	}
 
 	return TRUE;
@@ -1833,7 +1833,7 @@ BOOL SendRestrictedUiccCmd(RILUICCCOMMAND dwCommand, const RILUICCCMDPARAMETERS*
 
 BOOL SetExecutorRFState(DWORD dwExecutor, BOOL fExecutorRFState)
 {
-	std::cout << "Setting Executor RF State" << std::endl;
+	std::cout << "[Function Implementation] " << "Setting Executor RF State" << std::endl;
 
 	DWORD enabledNotifications[] = { RIL_NCLASS_FUNCRESULT, RIL_NCLASS_NOTIFICATIONS };
 	wchar_t clientName[] = L"RILClient";
@@ -1852,28 +1852,28 @@ BOOL SetExecutorRFState(DWORD dwExecutor, BOOL fExecutorRFState)
 		return FALSE;
 	}
 
-	std::cout << "Waiting" << std::endl;
+	std::cout << "[Function Implementation] " << "Waiting for the RIL function to return a result via our callback." << std::endl;
 	DWORD dwWaitResult = WaitForSingleObject(ResultEvent, INFINITE);
 	ResetEvent(ResultEvent);
 
-	std::cout << "Result: " << std::hex << RdwCode << std::endl;
+	std::cout << "[Function Implementation] " << "Result: " << std::hex << RdwCode << std::endl;
 
 	if (*(DWORD*)RusersContext != context)
 	{
-		std::cout << "This result wasn't for us it seems" << std::endl;
+		std::cout << "[Function Implementation] " << "The returned result isn't for us." << std::endl;
 		return FALSE;
 	}
 
 	if (RcbData != 0)
 	{
-		std::cout << "This result isn't expected" << std::endl;
+		std::cout << "[Function Implementation] " << "The size of the returned result is not the size we expected." << std::endl;
 		return FALSE;
 	}
 
 	hr = RIL_Deinitialize(hRil);
 	if (hr != ERROR_SUCCESS)
 	{
-		std::cout << "Unable to close handle" << std::endl;
+		std::cout << "[Function Implementation] " << "Unable to close handle" << std::endl;
 	}
 
 	return TRUE;
@@ -1881,7 +1881,7 @@ BOOL SetExecutorRFState(DWORD dwExecutor, BOOL fExecutorRFState)
 
 BOOL SetEquipmentState(DWORD dwEquipmentState)
 {
-	std::cout << "Setting equipment state" << std::endl;
+	std::cout << "[Function Implementation] " << "Setting equipment state" << std::endl;
 
 	DWORD enabledNotifications[] = { RIL_NCLASS_FUNCRESULT, RIL_NCLASS_NOTIFICATIONS };
 	wchar_t clientName[] = L"RILClient";
@@ -1900,28 +1900,28 @@ BOOL SetEquipmentState(DWORD dwEquipmentState)
 		return FALSE;
 	}
 
-	std::cout << "Waiting" << std::endl;
+	std::cout << "[Function Implementation] " << "Waiting for the RIL function to return a result via our callback." << std::endl;
 	DWORD dwWaitResult = WaitForSingleObject(ResultEvent, INFINITE);
 	ResetEvent(ResultEvent);
 
-	std::cout << "Result: " << std::hex << RdwCode << std::endl;
+	std::cout << "[Function Implementation] " << "Result: " << std::hex << RdwCode << std::endl;
 
 	if (*(DWORD*)RusersContext != context)
 	{
-		std::cout << "This result wasn't for us it seems" << std::endl;
+		std::cout << "[Function Implementation] " << "The returned result isn't for us." << std::endl;
 		return FALSE;
 	}
 
 	if (RcbData != 0)
 	{
-		std::cout << "This result isn't expected" << std::endl;
+		std::cout << "[Function Implementation] " << "The size of the returned result is not the size we expected." << std::endl;
 		return FALSE;
 	}
 
 	hr = RIL_Deinitialize(hRil);
 	if (hr != ERROR_SUCCESS)
 	{
-		std::cout << "Unable to close handle" << std::endl;
+		std::cout << "[Function Implementation] " << "Unable to close handle" << std::endl;
 	}
 
 	return TRUE;
@@ -1929,7 +1929,7 @@ BOOL SetEquipmentState(DWORD dwEquipmentState)
 
 BOOL SetSlotPower(DWORD dwSlotIndex, BOOL fPowerOn)
 {
-	std::cout << "Setting slot power" << std::endl;
+	std::cout << "[Function Implementation] " << "Setting slot power" << std::endl;
 
 	DWORD enabledNotifications[] = { RIL_NCLASS_FUNCRESULT, RIL_NCLASS_NOTIFICATIONS };
 	wchar_t clientName[] = L"RILClient";
@@ -1948,28 +1948,28 @@ BOOL SetSlotPower(DWORD dwSlotIndex, BOOL fPowerOn)
 		return FALSE;
 	}
 
-	std::cout << "Waiting" << std::endl;
+	std::cout << "[Function Implementation] " << "Waiting for the RIL function to return a result via our callback." << std::endl;
 	DWORD dwWaitResult = WaitForSingleObject(ResultEvent, INFINITE);
 	ResetEvent(ResultEvent);
 
-	std::cout << "Result: " << std::hex << RdwCode << std::endl;
+	std::cout << "[Function Implementation] " << "Result: " << std::hex << RdwCode << std::endl;
 
 	if (*(DWORD*)RusersContext != context)
 	{
-		std::cout << "This result wasn't for us it seems" << std::endl;
+		std::cout << "[Function Implementation] " << "The returned result isn't for us." << std::endl;
 		return FALSE;
 	}
 
 	if (RcbData != 0)
 	{
-		std::cout << "This result isn't expected" << std::endl;
+		std::cout << "[Function Implementation] " << "The size of the returned result is not the size we expected." << std::endl;
 		return FALSE;
 	}
 
 	hr = RIL_Deinitialize(hRil);
 	if (hr != ERROR_SUCCESS)
 	{
-		std::cout << "Unable to close handle" << std::endl;
+		std::cout << "[Function Implementation] " << "Unable to close handle" << std::endl;
 	}
 
 	return TRUE;
@@ -1977,7 +1977,7 @@ BOOL SetSlotPower(DWORD dwSlotIndex, BOOL fPowerOn)
 
 BOOL SetDMProfileConfigInfo(DWORD dwExecutor, DWORD dwConfigItem, const RILDMCONFIGINFOVALUE* rciValue)
 {
-	std::cout << "Setting DM Profile Config Information" << std::endl;
+	std::cout << "[Function Implementation] " << "Setting DM Profile Config Information" << std::endl;
 
 	DWORD enabledNotifications[] = { RIL_NCLASS_FUNCRESULT, RIL_NCLASS_NOTIFICATIONS };
 	wchar_t clientName[] = L"RILClient";
@@ -1996,28 +1996,28 @@ BOOL SetDMProfileConfigInfo(DWORD dwExecutor, DWORD dwConfigItem, const RILDMCON
 		return FALSE;
 	}
 
-	std::cout << "Waiting" << std::endl;
+	std::cout << "[Function Implementation] " << "Waiting for the RIL function to return a result via our callback." << std::endl;
 	DWORD dwWaitResult = WaitForSingleObject(ResultEvent, INFINITE);
 	ResetEvent(ResultEvent);
 
-	std::cout << "Result: " << std::hex << RdwCode << std::endl;
+	std::cout << "[Function Implementation] " << "Result: " << std::hex << RdwCode << std::endl;
 
 	if (*(DWORD*)RusersContext != context)
 	{
-		std::cout << "This result wasn't for us it seems" << std::endl;
+		std::cout << "[Function Implementation] " << "The returned result isn't for us." << std::endl;
 		return FALSE;
 	}
 
 	if (RcbData != 0)
 	{
-		std::cout << "This result isn't expected" << std::endl;
+		std::cout << "[Function Implementation] " << "The size of the returned result is not the size we expected." << std::endl;
 		return FALSE;
 	}
 
 	hr = RIL_Deinitialize(hRil);
 	if (hr != ERROR_SUCCESS)
 	{
-		std::cout << "Unable to close handle" << std::endl;
+		std::cout << "[Function Implementation] " << "Unable to close handle" << std::endl;
 	}
 
 	return TRUE;
@@ -2025,7 +2025,7 @@ BOOL SetDMProfileConfigInfo(DWORD dwExecutor, DWORD dwConfigItem, const RILDMCON
 
 BOOL SetCellBroadcastMsgConfig(HUICCAPP hUiccApp, const RILCBMSGCONFIG* lpCbMsgConfigInfo)
 {
-	std::cout << "Setting Cellular Broadcast Message Configuration" << std::endl;
+	std::cout << "[Function Implementation] " << "Setting Cellular Broadcast Message Configuration" << std::endl;
 
 	DWORD enabledNotifications[] = { RIL_NCLASS_FUNCRESULT, RIL_NCLASS_NOTIFICATIONS };
 	wchar_t clientName[] = L"RILClient";
@@ -2044,32 +2044,289 @@ BOOL SetCellBroadcastMsgConfig(HUICCAPP hUiccApp, const RILCBMSGCONFIG* lpCbMsgC
 		return FALSE;
 	}
 
-	std::cout << "Waiting" << std::endl;
+	std::cout << "[Function Implementation] " << "Waiting for the RIL function to return a result via our callback." << std::endl;
 	DWORD dwWaitResult = WaitForSingleObject(ResultEvent, INFINITE);
 	ResetEvent(ResultEvent);
 
-	std::cout << "Result: " << std::hex << RdwCode << std::endl;
+	std::cout << "[Function Implementation] " << "Result: " << std::hex << RdwCode << std::endl;
 
 	if (*(DWORD*)RusersContext != context)
 	{
-		std::cout << "This result wasn't for us it seems" << std::endl;
+		std::cout << "[Function Implementation] " << "The returned result isn't for us." << std::endl;
 		return FALSE;
 	}
 
 	if (RcbData != 0)
 	{
-		std::cout << "This result isn't expected" << std::endl;
+		std::cout << "[Function Implementation] " << "The size of the returned result is not the size we expected." << std::endl;
 		return FALSE;
 	}
 
 	hr = RIL_Deinitialize(hRil);
 	if (hr != ERROR_SUCCESS)
 	{
-		std::cout << "Unable to close handle" << std::endl;
+		std::cout << "[Function Implementation] " << "Unable to close handle" << std::endl;
 	}
 
 	return TRUE;
 }
+
+BOOL GetSignalQuality(DWORD dwExecutor, RILSIGNALQUALITY** signalquality, DWORD* length)
+{
+	std::cout << "[Function Implementation] " << "Getting signal quality" << std::endl;
+
+	DWORD enabledNotifications[] = { RIL_NCLASS_FUNCRESULT, RIL_NCLASS_NOTIFICATIONS };
+	wchar_t clientName[] = L"RILClient";
+	HRIL hRil;
+	DWORD context = 20;
+
+	HRESULT hr = RIL_Initialize(0, RILResultCallback, RILNotifyCallback, enabledNotifications, 2, &context, clientName, &hRil);
+	if (hr != ERROR_SUCCESS)
+	{
+		return FALSE;
+	}
+
+	hr = RIL_GetSignalQuality(hRil, &context, dwExecutor);
+	if (hr != ERROR_SUCCESS)
+	{
+		return FALSE;
+	}
+
+	std::cout << "[Function Implementation] " << "Waiting for the RIL function to return a result via our callback." << std::endl;
+	DWORD dwWaitResult = WaitForSingleObject(ResultEvent, INFINITE);
+	ResetEvent(ResultEvent);
+
+	std::cout << "[Function Implementation] " << "Result: " << std::hex << RdwCode << std::endl;
+
+	if (*(DWORD*)RusersContext != context)
+	{
+		std::cout << "[Function Implementation] " << "The returned result isn't for us." << std::endl;
+		return FALSE;
+	}
+
+	if (RcbData < sizeof(RILSIGNALQUALITY))
+	{
+		std::cout << "[Function Implementation] " << "The size of the returned result is not the size we expected." << std::endl;
+		return FALSE;
+	}
+
+	*length = RcbData;
+	*signalquality = *(RILSIGNALQUALITY**)RlpData;
+
+	hr = RIL_Deinitialize(hRil);
+	if (hr != ERROR_SUCCESS)
+	{
+		std::cout << "[Function Implementation] " << "Unable to close handle" << std::endl;
+	}
+
+	return TRUE;
+}
+
+BOOL GetIMSStatus(DWORD dwExecutor, RILIMSSTATUS* imsstatus)
+{
+	std::cout << "[Function Implementation] " << "Getting IMS status" << std::endl;
+
+	DWORD enabledNotifications[] = { RIL_NCLASS_FUNCRESULT, RIL_NCLASS_NOTIFICATIONS };
+	wchar_t clientName[] = L"RILClient";
+	HRIL hRil;
+	DWORD context = 20;
+
+	HRESULT hr = RIL_Initialize(0, RILResultCallback, RILNotifyCallback, enabledNotifications, 2, &context, clientName, &hRil);
+	if (hr != ERROR_SUCCESS)
+	{
+		return FALSE;
+	}
+
+	hr = RIL_GetIMSStatus(hRil, &context, dwExecutor);
+	if (hr != ERROR_SUCCESS)
+	{
+		return FALSE;
+	}
+
+	std::cout << "[Function Implementation] " << "Waiting for the RIL function to return a result via our callback." << std::endl;
+	DWORD dwWaitResult = WaitForSingleObject(ResultEvent, INFINITE);
+	ResetEvent(ResultEvent);
+
+	std::cout << "[Function Implementation] " << "Result: " << std::hex << RdwCode << std::endl;
+
+	if (*(DWORD*)RusersContext != context)
+	{
+		std::cout << "[Function Implementation] " << "The returned result isn't for us." << std::endl;
+		return FALSE;
+	}
+
+	if (RcbData < sizeof(RILIMSSTATUS))
+	{
+		std::cout << "[Function Implementation] " << "The size of the returned result is not the size we expected." << std::endl;
+		return FALSE;
+	}
+
+	*imsstatus = *(RILIMSSTATUS*)RlpData;
+
+	hr = RIL_Deinitialize(hRil);
+	if (hr != ERROR_SUCCESS)
+	{
+		std::cout << "[Function Implementation] " << "Unable to close handle" << std::endl;
+	}
+
+	return TRUE;
+}
+
+BOOL GetUiccATR(DWORD dwSlotIndex, RILUICCATRINFO* uiccatrinfo)
+{
+	std::cout << "[Function Implementation] " << "Getting UICC ATR" << std::endl;
+
+	DWORD enabledNotifications[] = { RIL_NCLASS_FUNCRESULT, RIL_NCLASS_NOTIFICATIONS };
+	wchar_t clientName[] = L"RILClient";
+	HRIL hRil;
+	DWORD context = 20;
+
+	HRESULT hr = RIL_Initialize(0, RILResultCallback, RILNotifyCallback, enabledNotifications, 2, &context, clientName, &hRil);
+	if (hr != ERROR_SUCCESS)
+	{
+		return FALSE;
+	}
+
+	hr = RIL_GetUiccATR(hRil, &context, dwSlotIndex);
+	if (hr != ERROR_SUCCESS)
+	{
+		return FALSE;
+	}
+
+	std::cout << "[Function Implementation] " << "Waiting for the RIL function to return a result via our callback." << std::endl;
+	DWORD dwWaitResult = WaitForSingleObject(ResultEvent, INFINITE);
+	ResetEvent(ResultEvent);
+
+	std::cout << "[Function Implementation] " << "Result: " << std::hex << RdwCode << std::endl;
+
+	if (*(DWORD*)RusersContext != context)
+	{
+		std::cout << "[Function Implementation] " << "The returned result isn't for us." << std::endl;
+		return FALSE;
+	}
+
+	if (RcbData < sizeof(RILUICCATRINFO))
+	{
+		std::cout << "[Function Implementation] " << "The size of the returned result is not the size we expected." << std::endl;
+		return FALSE;
+	}
+
+	*uiccatrinfo = *(RILUICCATRINFO*)RlpData;
+
+	hr = RIL_Deinitialize(hRil);
+	if (hr != ERROR_SUCCESS)
+	{
+		std::cout << "[Function Implementation] " << "Unable to close handle" << std::endl;
+	}
+
+	return TRUE;
+}
+
+BOOL GetSubscriberNumbers(HUICCAPP hUiccApp, RILUICCSUBSCRIBERNUMBERS* uiccsubscribernumbers)
+{
+	std::cout << "[Function Implementation] " << "Getting subscriber numbers" << std::endl;
+
+	DWORD enabledNotifications[] = { RIL_NCLASS_FUNCRESULT, RIL_NCLASS_NOTIFICATIONS };
+	wchar_t clientName[] = L"RILClient";
+	HRIL hRil;
+	DWORD context = 20;
+
+	HRESULT hr = RIL_Initialize(0, RILResultCallback, RILNotifyCallback, enabledNotifications, 2, &context, clientName, &hRil);
+	if (hr != ERROR_SUCCESS)
+	{
+		return FALSE;
+	}
+
+	hr = RIL_GetSubscriberNumbers(hRil, &context, hUiccApp);
+	if (hr != ERROR_SUCCESS)
+	{
+		return FALSE;
+	}
+
+	std::cout << "[Function Implementation] " << "Waiting for the RIL function to return a result via our callback." << std::endl;
+	DWORD dwWaitResult = WaitForSingleObject(ResultEvent, INFINITE);
+	ResetEvent(ResultEvent);
+
+	std::cout << "[Function Implementation] " << "Result: " << std::hex << RdwCode << std::endl;
+
+	if (*(DWORD*)RusersContext != context)
+	{
+		std::cout << "[Function Implementation] " << "The returned result isn't for us." << std::endl;
+		return FALSE;
+	}
+
+	if (RcbData < sizeof(RILUICCSUBSCRIBERNUMBERS))
+	{
+		std::cout << "[Function Implementation] " << "The size of the returned result is not the size we expected." << std::endl;
+		return FALSE;
+	}
+
+	*uiccsubscribernumbers = *(RILUICCSUBSCRIBERNUMBERS*)RlpData;
+
+	hr = RIL_Deinitialize(hRil);
+	if (hr != ERROR_SUCCESS)
+	{
+		std::cout << "[Function Implementation] " << "Unable to close handle" << std::endl;
+	}
+
+	return TRUE;
+}
+
+
+BOOL GetUiccAppPersoCheckState(HUICCAPP hUiccApp, RILUICCAPPPERSOCHECKSTATUS* uiccapppersocheckstatus)
+{
+	std::cout << "[Function Implementation] " << "Getting UICC Application Personalisation Check State" << std::endl;
+
+	DWORD enabledNotifications[] = { RIL_NCLASS_FUNCRESULT, RIL_NCLASS_NOTIFICATIONS };
+	wchar_t clientName[] = L"RILClient";
+	HRIL hRil;
+	DWORD context = 20;
+
+	HRESULT hr = RIL_Initialize(0, RILResultCallback, RILNotifyCallback, enabledNotifications, 2, &context, clientName, &hRil);
+	if (hr != ERROR_SUCCESS)
+	{
+		return FALSE;
+	}
+
+	hr = RIL_GetUiccAppPersoCheckState(hRil, &context, hUiccApp);
+	if (hr != ERROR_SUCCESS)
+	{
+		return FALSE;
+	}
+
+	std::cout << "[Function Implementation] " << "Waiting for the RIL function to return a result via our callback." << std::endl;
+	DWORD dwWaitResult = WaitForSingleObject(ResultEvent, INFINITE);
+	ResetEvent(ResultEvent);
+
+	std::cout << "[Function Implementation] " << "Result: " << std::hex << RdwCode << std::endl;
+
+	if (*(DWORD*)RusersContext != context)
+	{
+		std::cout << "[Function Implementation] " << "The returned result isn't for us." << std::endl;
+		return FALSE;
+	}
+
+	if (RcbData < sizeof(RILUICCAPPPERSOCHECKSTATUS))
+	{
+		std::cout << "[Function Implementation] " << "The size of the returned result is not the size we expected." << std::endl;
+		return FALSE;
+	}
+
+	*uiccapppersocheckstatus = *(RILUICCAPPPERSOCHECKSTATUS*)RlpData;
+
+	hr = RIL_Deinitialize(hRil);
+	if (hr != ERROR_SUCCESS)
+	{
+		std::cout << "[Function Implementation] " << "Unable to close handle" << std::endl;
+	}
+
+	return TRUE;
+}
+
+
+#pragma endregion
+
+#pragma region Display functions
 
 void PrintBanner()
 {
@@ -2456,6 +2713,8 @@ void DisplayAllEmergencyNumbers()
 	std::cout << std::endl;
 }
 
+#pragma endregion
+
 int main()
 {
 	PrintBanner();
@@ -2635,8 +2894,23 @@ int main()
 
 	DisplayCurrentRegStatus();
 
-	//getsignalquality 0
-	//RIL_COMMAND_GETIMSSTATUS 0
+	RILSIGNALQUALITY* signalquality = nullptr;
+	DWORD length = 0;
+	result = GetSignalQuality(0, &signalquality, &length);
+	if (result)
+	{
+		std::cout << "Ok." << std::endl;
+	}
+	std::cout << std::endl;
+
+	RILIMSSTATUS imsstatus = { 0 };
+	result = GetIMSStatus(0, &imsstatus);
+	if (result)
+	{
+		std::cout << "Ok." << std::endl;
+	}
+	std::cout << std::endl;
+
 	//RIL_COMMAND_GETPSMEDIACONFIGURATION 0 (not implemented in wmril, normal)
 
 	RILEXECUTORRFSTATE executorrfstate;
@@ -2659,7 +2933,13 @@ int main()
 	}
 	std::cout << std::endl;
 
-	//RIL_COMMAND_GETUICCATR
+	RILUICCATRINFO uiccatrinfo = { 0 };
+	result = GetUiccATR(0, &uiccatrinfo);
+	if (result)
+	{
+		std::cout << "Ok." << std::endl;
+	}
+	std::cout << std::endl;
 
 	RILUICCFILEPATH filePath = { 0x00000001lu, 0x00000002lu, { 0x3f00, 0x2f05, 0xd101, 0x0000, 0x08f0, 0x0000, 0x0000, 0x0000 } };
 	RILUICCRECORDSTATUS recordstatus;
@@ -2678,7 +2958,13 @@ int main()
 	}
 	std::cout << std::endl;
 
-	// RIL_COMMAND_GETIMSSTATUS 0
+	imsstatus = { 0 };
+	result = GetIMSStatus(0, &imsstatus);
+	if (result)
+	{
+		std::cout << "Ok." << std::endl;
+	}
+	std::cout << std::endl;
 
 	BYTE buffer2[] = {
 		0x2, 0x0, 0x1, 0x0, 0xc0, 0x4, 0x0, 0x0, 0x3, 0x0, 0x0, 0x0, 0x6, 0x0, 0x0, 0x0,
@@ -2769,7 +3055,15 @@ int main()
 	}
 	std::cout << std::endl;
 
-	//GETSUBSCRIBERNUMBERS  0x2, 0x0, 0x1, 0x0
+	HUICCAPP app = 0x00010002;
+
+	RILUICCSUBSCRIBERNUMBERS uiccsubscribernumbers = { 0 };
+	result = GetSubscriberNumbers(app, &uiccsubscribernumbers); if (result)
+	{
+		std::cout << "Ok." << std::endl;
+	}
+	std::cout << std::endl;
+
 	//GETIMSI 0x2, 0x0, 0x1, 0x0
 
 	WCHAR* model = nullptr;
@@ -2846,7 +3140,15 @@ int main()
 	std::cout << std::endl;
 
 	//getuicclockstate
-	//GETUICCAPPPERSOCHECKSTATE
+
+	app = 0x00010002;
+	RILUICCAPPPERSOCHECKSTATUS uiccapppersocheckstatus = { 0 };
+	result = GetUiccAppPersoCheckState(app, &uiccapppersocheckstatus);
+	if (result)
+	{
+		std::cout << "Ok." << std::endl;
+	}
+	std::cout << std::endl;
 
 	WCHAR* revision = nullptr;
 	lengthstr = 0;
@@ -2898,8 +3200,26 @@ int main()
 	}
 	std::cout << std::endl;
 
-	//getsubnumbers
-	//getuiccrecordstatus
+	app = 0x00010002;
+	uiccsubscribernumbers = { 0 };
+	result = GetSubscriberNumbers(app, &uiccsubscribernumbers); if (result)
+	{
+		std::cout << "Ok." << std::endl;
+	}
+	std::cout << std::endl;
+
+
+	app = 0x00010002;
+	filePath = { app, 0x00000002lu, { 0x7fff, 0x6fc7, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000 } };
+	recordstatus = { 0 };
+	result = GetUiccRecordStatus(&filePath, &recordstatus);
+	if (result)
+	{
+		std::cout << "Ok." << std::endl;
+	}
+	std::cout << std::endl;
+
+
 	//getuiccprlid
 	//getimsi
 
@@ -2909,25 +3229,110 @@ int main()
 	//watchuiccfilechange
 	//watchuiccfilechange
 	//watchuiccfilechange
-	//getuiccrecordstatus
-	//getuiccrecordstatus
-	//getuiccrecordstatus
+
+	app = 0x00010002;
+	filePath = { app, 0x00000002lu, { 0x7fff, 0x6f46, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000 } };
+	recordstatus = { 0 };
+	result = GetUiccRecordStatus(&filePath, &recordstatus);
+	if (result)
+	{
+		std::cout << "Ok." << std::endl;
+	}
+	std::cout << std::endl;
+
+
+	app = 0x00010002;
+	filePath = { app, 0x00000002lu, { 0x7fff, 0x6f3e, 0x01d1, 0x0000, 0xab60, 0x5df6, 0x01d2, 0x0000 } };
+	recordstatus = { 0 };
+	result = GetUiccRecordStatus(&filePath, &recordstatus);
+	if (result)
+	{
+		std::cout << "Ok." << std::endl;
+	}
+	std::cout << std::endl;
+
+
+	app = 0x00010002;
+	filePath = { app, 0x00000002lu, { 0x7fff, 0x6fc5, 0x01d1, 0x0000, 0xb9c0, 0x5df6, 0x01d2, 0x0000 } };
+	recordstatus = { 0 };
+	result = GetUiccRecordStatus(&filePath, &recordstatus);
+	if (result)
+	{
+		std::cout << "Ok." << std::endl;
+	}
+	std::cout << std::endl;
+
 	//getpersodeactstate
-	//getsubnumbers
-	//getuiccrecordstatus
+
+	app = 0x00010002;
+	uiccsubscribernumbers = { 0 };
+	result = GetSubscriberNumbers(app, &uiccsubscribernumbers); if (result)
+	{
+		std::cout << "Ok." << std::endl;
+	}
+	std::cout << std::endl;
+
+
+	app = 0x00010002;
+	filePath = { app, 0x00000002lu, { 0x7fff, 0x6fc7, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000 } };
+	recordstatus = { 0 };
+	result = GetUiccRecordStatus(&filePath, &recordstatus);
+	if (result)
+	{
+		std::cout << "Ok." << std::endl;
+	}
+	std::cout << std::endl;
+
 	//getuiccprlid
 	//getimsi
 
 	DisplayCurrentRegStatus();
 
-	//getuiccrecordstatus
-	//getuiccrecordstatus
-	//getuiccrecordstatus
-	//getuiccrecordstatus
+	app = 0x00010002;
+	filePath = { app, 0x00000002lu, { 0x7fff, 0x6f3e, 0x0000, 0x0000, 0xbe00, 0x000e, 0x7ffc, 0x0000 } };
+	recordstatus = { 0 };
+	result = GetUiccRecordStatus(&filePath, &recordstatus);
+	if (result)
+	{
+		std::cout << "Ok." << std::endl;
+	}
+	std::cout << std::endl;
 
+	app = 0x00010002;
+	filePath = { app, 0x00000002lu, { 0x7fff, 0x6f46, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000 } };
+	recordstatus = { 0 };
+	result = GetUiccRecordStatus(&filePath, &recordstatus);
+	if (result)
+	{
+		std::cout << "Ok." << std::endl;
+	}
+	std::cout << std::endl;
+
+	app = 0x00010002;
+	filePath = { app, 0x00000002lu, { 0x7fff, 0x6fc5, 0x01d1, 0x0000, 0x97ec, 0x5b48, 0x01d1, 0x0000 } };
+	recordstatus = { 0 };
+	result = GetUiccRecordStatus(&filePath, &recordstatus);
+	if (result)
+	{
+		std::cout << "Ok." << std::endl;
+	}
+	std::cout << std::endl;
+
+	app = 0x00010002;
+	filePath = { app, 0x00000002lu, { 0x7fff, 0x6f17, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000 } };
+	recordstatus = { 0 };
+	result = GetUiccRecordStatus(&filePath, &recordstatus);
+	if (result)
+	{
+		std::cout << "Ok." << std::endl;
+	}
+	std::cout << std::endl;
 
 	//sendrestricteduiccmd bigbuffer
 	//sendrestricteduiccmd bigbuffer
+
+	//getuiccrecordstatus
+
 	//sendrestricteduiccmd bigbuffer
 	//sendrestricteduiccmd bigbuffer
 
