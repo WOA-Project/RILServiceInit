@@ -1758,6 +1758,7 @@ void mainRIL()
 	// later we may want to handle multi sim scenarios
 	//
 	DWORD executor = 0;
+	DWORD executor2 = 1;
 
 	BOOL DisableCallReg = FALSE;
 
@@ -1822,6 +1823,15 @@ void mainRIL()
 	DWORD lengthstr = 0;
 
 	result = GetDeviceInfo(executor, RILDEVICEINFORMATION::RIL_DEVICEINFO_SERIALNUMBER_GW, &serialnumbergw, &lengthstr);
+	if (result)
+	{
+		std::cout << "IMEI is: ";
+		wprintf_s(serialnumbergw);
+		std::cout << std::endl;
+	}
+	std::cout << std::endl;
+
+	result = GetDeviceInfo(executor2, RILDEVICEINFORMATION::RIL_DEVICEINFO_SERIALNUMBER_GW, &serialnumbergw, &lengthstr);
 	if (result)
 	{
 		std::cout << "IMEI is: ";
@@ -2013,10 +2023,18 @@ void mainRIL()
 	std::cout << std::endl;
 
 	DisplayCurrentRegStatus(executor);
+	DisplayCurrentRegStatus(executor2);
 
 	RILSIGNALQUALITY* signalquality = nullptr;
 	DWORD length = 0;
 	result = GetSignalQuality(executor, &signalquality, &length);
+	if (result)
+	{
+		std::cout << "Ok." << std::endl;
+	}
+	std::cout << std::endl;
+
+	result = GetSignalQuality(executor2, &signalquality, &length);
 	if (result)
 	{
 		std::cout << "Ok." << std::endl;
@@ -2031,10 +2049,24 @@ void mainRIL()
 	}
 	std::cout << std::endl;
 
+	result = GetIMSStatus(executor2, &imsstatus);
+	if (result)
+	{
+		std::cout << "Ok." << std::endl;
+	}
+	std::cout << std::endl;
+
 	//RIL_COMMAND_GETPSMEDIACONFIGURATION 0 (not implemented in wmril, normal)
 
 	RILEXECUTORRFSTATE executorrfstate;
 	result = GetExecutorRFState(executor, &executorrfstate);
+	if (result)
+	{
+		std::cout << "Ok." << std::endl;
+	}
+	std::cout << std::endl;
+
+	result = GetExecutorRFState(executor2, &executorrfstate);
 	if (result)
 	{
 		std::cout << "Ok." << std::endl;
@@ -2053,8 +2085,24 @@ void mainRIL()
 	}
 	std::cout << std::endl;
 
+	result = GetDeviceInfo(executor2, RILDEVICEINFORMATION::RIL_DEVICEINFO_MANUFACTURER, &manufacturer, &lengthstr);
+	if (result)
+	{
+		std::cout << "Manufacturer is: ";
+		wprintf_s(manufacturer);
+		std::cout << std::endl;
+	}
+	std::cout << std::endl;
+
 	RILUICCATRINFO uiccatrinfo = { 0 };
 	result = GetUiccATR(executor, &uiccatrinfo);
+	if (result)
+	{
+		std::cout << "Ok." << std::endl;
+	}
+	std::cout << std::endl;
+
+	result = GetUiccATR(executor2, &uiccatrinfo);
 	if (result)
 	{
 		std::cout << "Ok." << std::endl;
@@ -2078,8 +2126,22 @@ void mainRIL()
 	}
 	std::cout << std::endl;
 
+	result = SetExecutorConfig(executor2, &RilExecutorConfig);
+	if (result)
+	{
+		std::cout << "Ok." << std::endl;
+	}
+	std::cout << std::endl;
+
 	imsstatus = { 0 };
 	result = GetIMSStatus(executor, &imsstatus);
+	if (result)
+	{
+		std::cout << "Ok." << std::endl;
+	}
+	std::cout << std::endl;
+
+	result = GetIMSStatus(executor2, &imsstatus);
 	if (result)
 	{
 		std::cout << "Ok." << std::endl;
@@ -2168,7 +2230,7 @@ void mainRIL()
 
 	RILSETCELLBROADCASTMSGCONFIGPARAMS params2 = *(RILSETCELLBROADCASTMSGCONFIGPARAMS*)buffer2;
 
-	result = SetCellBroadcastMsgConfig(params2.hUiccApp, &params2.rmCBConfig);
+	result = SetCellBroadcastMsgConfig(app, &params2.rmCBConfig);
 	if (result)
 	{
 		std::cout << "Ok." << std::endl;
@@ -2188,6 +2250,15 @@ void mainRIL()
 	lengthstr = 0;
 
 	result = GetDeviceInfo(executor, RILDEVICEINFORMATION::RIL_DEVICEINFO_MODEL, &model, &lengthstr);
+	if (result)
+	{
+		std::cout << "Model is: ";
+		wprintf_s(model);
+		std::cout << std::endl;
+	}
+	std::cout << std::endl;
+
+	result = GetDeviceInfo(executor2, RILDEVICEINFORMATION::RIL_DEVICEINFO_MODEL, &model, &lengthstr);
 	if (result)
 	{
 		std::cout << "Model is: ";
@@ -2231,6 +2302,13 @@ void mainRIL()
 	}
 	std::cout << std::endl;
 
+	result = SetExecutorRFState(executor2, TRUE);
+	if (result)
+	{
+		std::cout << "Ok" << std::endl;
+	}
+	std::cout << std::endl;
+
 	result = SetEquipmentState(2);
 	if (result)
 	{
@@ -2260,6 +2338,15 @@ void mainRIL()
 	}
 	std::cout << std::endl;
 
+	result = GetDeviceInfo(executor2, RILDEVICEINFORMATION::RIL_DEVICEINFO_REVISION, &revision, &lengthstr);
+	if (result)
+	{
+		std::cout << "Revision is: ";
+		wprintf_s(revision);
+		std::cout << std::endl;
+	}
+	std::cout << std::endl;
+
 	//watchuicc
 	//watchuicc
 	//getuicclockstate
@@ -2268,6 +2355,15 @@ void mainRIL()
 	lengthstr = 0;
 
 	result = GetDeviceInfo(executor, RILDEVICEINFORMATION::RIL_DEVICEINFO_SERIALNUMBER_GW, &serialnumbergw, &lengthstr);
+	if (result)
+	{
+		std::cout << "IMEI is: ";
+		wprintf_s(serialnumbergw);
+		std::cout << std::endl;
+	}
+	std::cout << std::endl;
+
+	result = GetDeviceInfo(executor2, RILDEVICEINFORMATION::RIL_DEVICEINFO_SERIALNUMBER_GW, &serialnumbergw, &lengthstr);
 	if (result)
 	{
 		std::cout << "IMEI is: ";
@@ -2290,10 +2386,26 @@ void mainRIL()
 	}
 	std::cout << std::endl;
 
+	result = GetDeviceInfo(executor2, RILDEVICEINFORMATION::RIL_DEVICEINFO_SERIALNUMBER_CDMA, &serialnumbercdma, &lengthstr);
+	if (result)
+	{
+		std::cout << "MEID is: ";
+		wprintf_s(serialnumbercdma);
+		std::cout << std::endl;
+	}
+	std::cout << std::endl;
+
 	//
 	// Turn on power for the SIM slot
 	//
 	result = SetSlotPower(executor, TRUE);
+	if (result)
+	{
+		std::cout << "Ok." << std::endl;
+	}
+	std::cout << std::endl;
+
+	result = SetSlotPower(executor2, TRUE);
 	if (result)
 	{
 		std::cout << "Ok." << std::endl;
@@ -2321,6 +2433,7 @@ void mainRIL()
 	//getimsi
 
 	DisplayCurrentRegStatus(executor);
+	DisplayCurrentRegStatus(executor2);
 
 	//watchuiccfilechange
 	//watchuiccfilechange
@@ -2378,6 +2491,7 @@ void mainRIL()
 	//getimsi
 
 	DisplayCurrentRegStatus(executor);
+	DisplayCurrentRegStatus(executor2);
 
 	filePath = { app, 2lu, { 0x7fff, 0x6f3e } };
 	recordstatus = { 0 };
@@ -2532,6 +2646,7 @@ void mainRIL()
 	std::cout << std::endl;
 
 	DisplayCurrentRegStatus(executor);
+	DisplayCurrentRegStatus(executor2);
 
 	//
 	// Turn on power for the SIM slot
@@ -2543,11 +2658,25 @@ void mainRIL()
 	}
 	std::cout << std::endl;
 
+	result = SetSlotPower(executor2, TRUE);
+	if (result)
+	{
+		std::cout << "Ok." << std::endl;
+	}
+	std::cout << std::endl;
+
 	//
 	// Set the DM profile configuration information to disabled for type 0x210
 	//
 	RILDMCONFIGINFOVALUE additional = { 528, RILDMCONFIGINFOTYPE::RIL_DMCV_TYPE_BOOLEAN, FALSE, 0, NULL };
 	result = SetDMProfileConfigInfo(executor, 32, &additional);
+	if (result)
+	{
+		std::cout << "Ok." << std::endl;
+	}
+	std::cout << std::endl;
+
+	result = SetDMProfileConfigInfo(executor2, 32, &additional);
 	if (result)
 	{
 		std::cout << "Ok." << std::endl;
