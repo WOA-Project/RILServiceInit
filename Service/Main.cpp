@@ -10,7 +10,11 @@ int _tmain(int argc, TCHAR* argv[])
 
 	if (StartServiceCtrlDispatcher(ServiceTable) == FALSE)
 	{
-		return GetLastError();
+		//return GetLastError();
+		// The application was ran by the user
+		// So we run our main procedure
+
+		return ServiceWorkerThread(NULL);
 	}
 
 	return 0;
@@ -44,7 +48,7 @@ VOID WINAPI ServiceMain(DWORD argc, LPTSTR* argv)
 	 * Perform tasks neccesary to start the service here
 	 */
 
-	// Create stop event to wait on later.
+	 // Create stop event to wait on later.
 	g_ServiceStopEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
 	if (g_ServiceStopEvent == NULL)
 	{
@@ -1692,7 +1696,7 @@ typedef struct WNF_CALL_REGISTRATION
 	BYTE ICCID2[10];
 	short shReserved2 = 0xA005i16;
 	DWORD dwReserved4 = 0x87000000;
-	
+
 	//
 	// These values seem unique per SIM (?)
 	// Only the ones I highlighted do change between SIMs and looks like they must
@@ -1746,6 +1750,123 @@ bool IsBuild18912OrGreater()
 	return v.dwBuildNumber >= 18912;
 }
 
+void RestartWWANSVC()
+{
+
+	//
+	// Give us a bit of time to fully bring up the network before starting
+	// to restart WwanSvc
+	//
+	// We check when WwanSvc reports that the device is fully connected and
+	// then we restart the service.
+	//
+	HANDLE hClient = NULL;
+	DWORD dwMaxClient = 1;
+	DWORD dwCurVersion = 0;
+	DWORD dwResult = 0;
+	int iRet = 0;
+
+	WCHAR GuidString[40] = { 0 };
+
+	PWWAN_INTERFACE_INFO_LIST pIfList = NULL;
+
+	dwResult = WwanOpenHandle(dwMaxClient, NULL, &dwCurVersion, &hClient);
+	if (dwResult != ERROR_SUCCESS)
+	{
+		return;
+	}
+
+	DWORD counter = 0;
+	while (true)
+	{
+		counter++;
+		dwResult = WwanEnumerateInterfaces(hClient, NULL, &pIfList);
+		if (dwResult != ERROR_SUCCESS)
+		{
+			return;
+		}
+		else
+		{
+			BOOL Activated = false;
+			for (int i = 0; i < (int)pIfList->dwNumberOfItems; i++)
+			{
+				WWAN_INTERFACE_INFO pIfInfo = pIfList->InterfaceInfo[i];
+				if (pIfInfo.InterfaceStatus.InterfaceState == WWAN_INTERFACE_STATE::WwanInterfaceStateActivated)
+				{
+					Activated = true;
+				}
+			}
+
+			if (Activated)
+				break;
+		}
+		if (counter >= 120)
+		{
+			if (pIfList != NULL) {
+				WwanFreeMemory(pIfList);
+				pIfList = NULL;
+			}
+
+			if (hClient != NULL)
+				WwanCloseHandle(hClient, NULL);
+
+			return;
+		}
+		Sleep(10000);
+	}
+
+	if (pIfList != NULL) {
+		WwanFreeMemory(pIfList);
+		pIfList = NULL;
+	}
+
+	if (hClient != NULL)
+		WwanCloseHandle(hClient, NULL);
+
+	//
+	// The actual service restart portion
+	//
+	std::string Service = "WwanSvc";
+	SERVICE_STATUS Status;
+
+	SC_HANDLE SCManager = OpenSCManager(NULL, NULL, SC_MANAGER_ALL_ACCESS);
+	SC_HANDLE SHandle = OpenService(SCManager, Service.c_str(), SC_MANAGER_ALL_ACCESS);
+
+	if (SHandle == NULL)
+	{
+		CloseServiceHandle(SCManager);
+		return;
+	}
+
+	if (!ControlService(SHandle, SERVICE_CONTROL_STOP, &Status))
+	{
+		CloseServiceHandle(SCManager);
+		CloseServiceHandle(SHandle);
+		return;
+	}
+
+	do
+	{
+		QueryServiceStatus(SHandle, &Status);
+	} while (Status.dwCurrentState != SERVICE_STOPPED);
+
+
+	if (!StartService(SHandle, 0, NULL))
+	{
+		CloseServiceHandle(SCManager);
+		CloseServiceHandle(SHandle);
+		return;
+	}
+
+	do
+	{
+		QueryServiceStatus(SHandle, &Status);
+	} while (Status.dwCurrentState != SERVICE_RUNNING);
+
+	CloseServiceHandle(SCManager);
+	CloseServiceHandle(SHandle);
+}
+
 void mainRIL()
 {
 	//
@@ -1759,6 +1880,7 @@ void mainRIL()
 	//
 	DWORD executor = 0;
 	DWORD executor2 = 1;
+	BOOL initializeSecondExecutor = FALSE;
 
 	BOOL DisableCallReg = FALSE;
 
@@ -1778,11 +1900,11 @@ void mainRIL()
 			if (dwData == 1)
 				DisableCallReg = TRUE;
 
-		nResult = ::RegQueryValueEx(hKey, "Executor", NULL, NULL, (LPBYTE)&dwData, &cbData);
+		/*nResult = ::RegQueryValueEx(hKey, "Executor", NULL, NULL, (LPBYTE)&dwData, &cbData);
 
 		if (nResult == ERROR_SUCCESS)
 			if (dwData == 1)
-				executor = dwData;
+				executor = dwData;*/
 
 		RegCloseKey(hKey);
 	}
@@ -1829,6 +1951,11 @@ void mainRIL()
 		wprintf_s(serialnumbergw);
 		std::cout << std::endl;
 	}
+	else
+	{
+		std::cout << "Device does not have any broadband adapter, leaving." << std::endl;
+		return;
+	}
 	std::cout << std::endl;
 
 	result = GetDeviceInfo(executor2, RILDEVICEINFORMATION::RIL_DEVICEINFO_SERIALNUMBER_GW, &serialnumbergw, &lengthstr);
@@ -1837,6 +1964,7 @@ void mainRIL()
 		std::cout << "IMEI is: ";
 		wprintf_s(serialnumbergw);
 		std::cout << std::endl;
+		initializeSecondExecutor = TRUE;
 	}
 	std::cout << std::endl;
 
@@ -2023,7 +2151,8 @@ void mainRIL()
 	std::cout << std::endl;
 
 	DisplayCurrentRegStatus(executor);
-	DisplayCurrentRegStatus(executor2);
+	if (initializeSecondExecutor)
+		DisplayCurrentRegStatus(executor2);
 
 	RILSIGNALQUALITY* signalquality = nullptr;
 	DWORD length = 0;
@@ -2034,12 +2163,15 @@ void mainRIL()
 	}
 	std::cout << std::endl;
 
-	result = GetSignalQuality(executor2, &signalquality, &length);
-	if (result)
+	if (initializeSecondExecutor)
 	{
-		std::cout << "Ok." << std::endl;
+		result = GetSignalQuality(executor2, &signalquality, &length);
+		if (result)
+		{
+			std::cout << "Ok." << std::endl;
+		}
+		std::cout << std::endl;
 	}
-	std::cout << std::endl;
 
 	RILIMSSTATUS imsstatus = { 0 };
 	result = GetIMSStatus(executor, &imsstatus);
@@ -2049,12 +2181,15 @@ void mainRIL()
 	}
 	std::cout << std::endl;
 
-	result = GetIMSStatus(executor2, &imsstatus);
-	if (result)
+	if (initializeSecondExecutor)
 	{
-		std::cout << "Ok." << std::endl;
+		result = GetIMSStatus(executor2, &imsstatus);
+		if (result)
+		{
+			std::cout << "Ok." << std::endl;
+		}
+		std::cout << std::endl;
 	}
-	std::cout << std::endl;
 
 	//RIL_COMMAND_GETPSMEDIACONFIGURATION 0 (not implemented in wmril, normal)
 
@@ -2066,12 +2201,15 @@ void mainRIL()
 	}
 	std::cout << std::endl;
 
-	result = GetExecutorRFState(executor2, &executorrfstate);
-	if (result)
+	if (initializeSecondExecutor)
 	{
-		std::cout << "Ok." << std::endl;
+		result = GetExecutorRFState(executor2, &executorrfstate);
+		if (result)
+		{
+			std::cout << "Ok." << std::endl;
+		}
+		std::cout << std::endl;
 	}
-	std::cout << std::endl;
 
 	WCHAR* manufacturer = nullptr;
 	lengthstr = 0;
@@ -2085,14 +2223,17 @@ void mainRIL()
 	}
 	std::cout << std::endl;
 
-	result = GetDeviceInfo(executor2, RILDEVICEINFORMATION::RIL_DEVICEINFO_MANUFACTURER, &manufacturer, &lengthstr);
-	if (result)
+	if (initializeSecondExecutor)
 	{
-		std::cout << "Manufacturer is: ";
-		wprintf_s(manufacturer);
+		result = GetDeviceInfo(executor2, RILDEVICEINFORMATION::RIL_DEVICEINFO_MANUFACTURER, &manufacturer, &lengthstr);
+		if (result)
+		{
+			std::cout << "Manufacturer is: ";
+			wprintf_s(manufacturer);
+			std::cout << std::endl;
+		}
 		std::cout << std::endl;
 	}
-	std::cout << std::endl;
 
 	RILUICCATRINFO uiccatrinfo = { 0 };
 	result = GetUiccATR(executor, &uiccatrinfo);
@@ -2102,12 +2243,15 @@ void mainRIL()
 	}
 	std::cout << std::endl;
 
-	result = GetUiccATR(executor2, &uiccatrinfo);
-	if (result)
+	if (initializeSecondExecutor)
 	{
-		std::cout << "Ok." << std::endl;
+		result = GetUiccATR(executor2, &uiccatrinfo);
+		if (result)
+		{
+			std::cout << "Ok." << std::endl;
+		}
+		std::cout << std::endl;
 	}
-	std::cout << std::endl;
 
 	RILUICCFILEPATH filePath = { 1lu, 2lu, { 0x3f00, 0x2f05 } };
 	RILUICCRECORDSTATUS recordstatus;
@@ -2126,12 +2270,15 @@ void mainRIL()
 	}
 	std::cout << std::endl;
 
-	result = SetExecutorConfig(executor2, &RilExecutorConfig);
-	if (result)
+	if (initializeSecondExecutor)
 	{
-		std::cout << "Ok." << std::endl;
+		result = SetExecutorConfig(executor2, &RilExecutorConfig);
+		if (result)
+		{
+			std::cout << "Ok." << std::endl;
+		}
+		std::cout << std::endl;
 	}
-	std::cout << std::endl;
 
 	imsstatus = { 0 };
 	result = GetIMSStatus(executor, &imsstatus);
@@ -2141,14 +2288,17 @@ void mainRIL()
 	}
 	std::cout << std::endl;
 
-	result = GetIMSStatus(executor2, &imsstatus);
-	if (result)
+	if (initializeSecondExecutor)
 	{
-		std::cout << "Ok." << std::endl;
+		result = GetIMSStatus(executor2, &imsstatus);
+		if (result)
+		{
+			std::cout << "Ok." << std::endl;
+		}
+		std::cout << std::endl;
 	}
-	std::cout << std::endl;
 
-	BYTE buffer2[] = {
+	BYTE setmsgbroadcastconfigparamsbuffer[] = {
 		2, 0, 1, 0, 0xc0, 4, 0, 0, 3, 0, 0, 0, 6, 0, 0, 0,
 		1, 0, 0, 0, 0x32, 0, 0, 0, 0x32, 0, 0, 0, 1, 0, 0, 0,
 		7, 2, 0, 0, 7, 2, 0, 0, 1, 0, 0, 0, 0x97, 3, 0, 0,
@@ -2228,7 +2378,7 @@ void mainRIL()
 		0, 0, 0, 0
 	};
 
-	RILSETCELLBROADCASTMSGCONFIGPARAMS params2 = *(RILSETCELLBROADCASTMSGCONFIGPARAMS*)buffer2;
+	RILSETCELLBROADCASTMSGCONFIGPARAMS params2 = *(RILSETCELLBROADCASTMSGCONFIGPARAMS*)setmsgbroadcastconfigparamsbuffer;
 
 	result = SetCellBroadcastMsgConfig(app, &params2.rmCBConfig);
 	if (result)
@@ -2258,14 +2408,17 @@ void mainRIL()
 	}
 	std::cout << std::endl;
 
-	result = GetDeviceInfo(executor2, RILDEVICEINFORMATION::RIL_DEVICEINFO_MODEL, &model, &lengthstr);
-	if (result)
+	if (initializeSecondExecutor)
 	{
-		std::cout << "Model is: ";
-		wprintf_s(model);
+		result = GetDeviceInfo(executor2, RILDEVICEINFORMATION::RIL_DEVICEINFO_MODEL, &model, &lengthstr);
+		if (result)
+		{
+			std::cout << "Model is: ";
+			wprintf_s(model);
+			std::cout << std::endl;
+		}
 		std::cout << std::endl;
 	}
-	std::cout << std::endl;
 
 	RILUICCCMDPARAMETERS uiccCommandParameters;
 	uiccCommandParameters.cbSize = 0x2C;
@@ -2302,12 +2455,15 @@ void mainRIL()
 	}
 	std::cout << std::endl;
 
-	result = SetExecutorRFState(executor2, TRUE);
-	if (result)
+	if (initializeSecondExecutor)
 	{
-		std::cout << "Ok" << std::endl;
+		result = SetExecutorRFState(executor2, TRUE);
+		if (result)
+		{
+			std::cout << "Ok" << std::endl;
+		}
+		std::cout << std::endl;
 	}
-	std::cout << std::endl;
 
 	result = SetEquipmentState(2);
 	if (result)
@@ -2338,14 +2494,17 @@ void mainRIL()
 	}
 	std::cout << std::endl;
 
-	result = GetDeviceInfo(executor2, RILDEVICEINFORMATION::RIL_DEVICEINFO_REVISION, &revision, &lengthstr);
-	if (result)
+	if (initializeSecondExecutor)
 	{
-		std::cout << "Revision is: ";
-		wprintf_s(revision);
+		result = GetDeviceInfo(executor2, RILDEVICEINFORMATION::RIL_DEVICEINFO_REVISION, &revision, &lengthstr);
+		if (result)
+		{
+			std::cout << "Revision is: ";
+			wprintf_s(revision);
+			std::cout << std::endl;
+		}
 		std::cout << std::endl;
 	}
-	std::cout << std::endl;
 
 	//watchuicc
 	//watchuicc
@@ -2363,14 +2522,17 @@ void mainRIL()
 	}
 	std::cout << std::endl;
 
-	result = GetDeviceInfo(executor2, RILDEVICEINFORMATION::RIL_DEVICEINFO_SERIALNUMBER_GW, &serialnumbergw, &lengthstr);
-	if (result)
+	if (initializeSecondExecutor)
 	{
-		std::cout << "IMEI is: ";
-		wprintf_s(serialnumbergw);
+		result = GetDeviceInfo(executor2, RILDEVICEINFORMATION::RIL_DEVICEINFO_SERIALNUMBER_GW, &serialnumbergw, &lengthstr);
+		if (result)
+		{
+			std::cout << "IMEI is: ";
+			wprintf_s(serialnumbergw);
+			std::cout << std::endl;
+		}
 		std::cout << std::endl;
 	}
-	std::cout << std::endl;
 
 	//getimsi
 
@@ -2386,14 +2548,17 @@ void mainRIL()
 	}
 	std::cout << std::endl;
 
-	result = GetDeviceInfo(executor2, RILDEVICEINFORMATION::RIL_DEVICEINFO_SERIALNUMBER_CDMA, &serialnumbercdma, &lengthstr);
-	if (result)
+	if (initializeSecondExecutor)
 	{
-		std::cout << "MEID is: ";
-		wprintf_s(serialnumbercdma);
+		result = GetDeviceInfo(executor2, RILDEVICEINFORMATION::RIL_DEVICEINFO_SERIALNUMBER_CDMA, &serialnumbercdma, &lengthstr);
+		if (result)
+		{
+			std::cout << "MEID is: ";
+			wprintf_s(serialnumbercdma);
+			std::cout << std::endl;
+		}
 		std::cout << std::endl;
 	}
-	std::cout << std::endl;
 
 	//
 	// Turn on power for the SIM slot
@@ -2405,12 +2570,15 @@ void mainRIL()
 	}
 	std::cout << std::endl;
 
-	result = SetSlotPower(executor2, TRUE);
-	if (result)
+	if (initializeSecondExecutor)
 	{
-		std::cout << "Ok." << std::endl;
+		result = SetSlotPower(executor2, TRUE);
+		if (result)
+		{
+			std::cout << "Ok." << std::endl;
+		}
+		std::cout << std::endl;
 	}
-	std::cout << std::endl;
 
 	uiccsubscribernumbers = { 0 };
 	result = GetSubscriberNumbers(app, &uiccsubscribernumbers); if (result)
@@ -2433,7 +2601,8 @@ void mainRIL()
 	//getimsi
 
 	DisplayCurrentRegStatus(executor);
-	DisplayCurrentRegStatus(executor2);
+	if (initializeSecondExecutor)
+		DisplayCurrentRegStatus(executor2);
 
 	//watchuiccfilechange
 	//watchuiccfilechange
@@ -2491,7 +2660,8 @@ void mainRIL()
 	//getimsi
 
 	DisplayCurrentRegStatus(executor);
-	DisplayCurrentRegStatus(executor2);
+	if (initializeSecondExecutor)
+		DisplayCurrentRegStatus(executor2);
 
 	filePath = { app, 2lu, { 0x7fff, 0x6f3e } };
 	recordstatus = { 0 };
@@ -2646,7 +2816,10 @@ void mainRIL()
 	std::cout << std::endl;
 
 	DisplayCurrentRegStatus(executor);
-	DisplayCurrentRegStatus(executor2);
+	if (initializeSecondExecutor)
+	{
+		DisplayCurrentRegStatus(executor2);
+	}
 
 	//
 	// Turn on power for the SIM slot
@@ -2658,12 +2831,15 @@ void mainRIL()
 	}
 	std::cout << std::endl;
 
-	result = SetSlotPower(executor2, TRUE);
-	if (result)
+	if (initializeSecondExecutor)
 	{
-		std::cout << "Ok." << std::endl;
+		result = SetSlotPower(executor2, TRUE);
+		if (result)
+		{
+			std::cout << "Ok." << std::endl;
+		}
+		std::cout << std::endl;
 	}
-	std::cout << std::endl;
 
 	//
 	// Set the DM profile configuration information to disabled for type 0x210
@@ -2676,12 +2852,15 @@ void mainRIL()
 	}
 	std::cout << std::endl;
 
-	result = SetDMProfileConfigInfo(executor2, 32, &additional);
-	if (result)
+	if (initializeSecondExecutor)
 	{
-		std::cout << "Ok." << std::endl;
+		result = SetDMProfileConfigInfo(executor2, 32, &additional);
+		if (result)
+		{
+			std::cout << "Ok." << std::endl;
+		}
+		std::cout << std::endl;
 	}
-	std::cout << std::endl;
 
 	//
 	// Restart service
@@ -2689,119 +2868,7 @@ void mainRIL()
 	// if we don't force it to reload, so do that
 	// (otherwise the data connection won't be established)
 	//
-
-	//
-	// Give us a bit of time to fully bring up the network before starting
-	// to restart WwanSvc
-	//
-	// We check when WwanSvc reports that the device is fully connected and
-	// then we restart the service.
-	//
-	HANDLE hClient = NULL;
-	DWORD dwMaxClient = 1;
-	DWORD dwCurVersion = 0;
-	DWORD dwResult = 0;
-	int iRet = 0;
-
-	WCHAR GuidString[40] = { 0 };
-
-	PWWAN_INTERFACE_INFO_LIST pIfList = NULL;
-
-	dwResult = WwanOpenHandle(dwMaxClient, NULL, &dwCurVersion, &hClient);
-	if (dwResult != ERROR_SUCCESS)
-	{
-		return;
-	}
-
-	DWORD counter = 0;
-	while (true)
-	{
-		counter++;
-		dwResult = WwanEnumerateInterfaces(hClient, NULL, &pIfList);
-		if (dwResult != ERROR_SUCCESS)
-		{
-			return;
-		}
-		else
-		{
-			BOOL Activated = false;
-			for (int i = 0; i < (int)pIfList->dwNumberOfItems; i++)
-			{
-				WWAN_INTERFACE_INFO pIfInfo = pIfList->InterfaceInfo[i];
-				if (pIfInfo.InterfaceStatus.InterfaceState == WWAN_INTERFACE_STATE::WwanInterfaceStateActivated)
-				{
-					Activated = true;
-				}
-			}
-
-			if (Activated)
-				break;
-		}
-		if (counter >= 120)
-		{
-			if (pIfList != NULL) {
-				WwanFreeMemory(pIfList);
-				pIfList = NULL;
-			}
-
-			if (hClient != NULL)
-				WwanCloseHandle(hClient, NULL);
-
-			return;
-		}
-		Sleep(10000);
-	}
-
-	if (pIfList != NULL) {
-		WwanFreeMemory(pIfList);
-		pIfList = NULL;
-	}
-
-	if (hClient != NULL)
-		WwanCloseHandle(hClient, NULL);
-
-	//
-	// The actual service restart portion
-	//
-	std::string Service = "WwanSvc";
-	SERVICE_STATUS Status;
-
-	SC_HANDLE SCManager = OpenSCManager(NULL, NULL, SC_MANAGER_ALL_ACCESS);
-	SC_HANDLE SHandle = OpenService(SCManager, Service.c_str(), SC_MANAGER_ALL_ACCESS);
-
-	if (SHandle == NULL)
-	{
-		CloseServiceHandle(SCManager);
-		return;
-	}
-
-	if (!ControlService(SHandle, SERVICE_CONTROL_STOP, &Status))
-	{
-		CloseServiceHandle(SCManager);
-		CloseServiceHandle(SHandle);
-		return;
-	}
-
-	do
-	{
-		QueryServiceStatus(SHandle, &Status);
-	} while (Status.dwCurrentState != SERVICE_STOPPED);
-
-
-	if (!StartService(SHandle, 0, NULL))
-	{
-		CloseServiceHandle(SCManager);
-		CloseServiceHandle(SHandle);
-		return;
-	}
-
-	do
-	{
-		QueryServiceStatus(SHandle, &Status);
-	} while (Status.dwCurrentState != SERVICE_RUNNING);
-
-	CloseServiceHandle(SCManager);
-	CloseServiceHandle(SHandle);
+	RestartWWANSVC();
 
 	//
 	// We're done
