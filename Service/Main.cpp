@@ -1880,6 +1880,8 @@ void mainRIL()
 	//
 	DWORD executor = 0;
 	DWORD executor2 = 1;
+	DWORD preferredExecutor = -1;
+
 	BOOL initializeSecondExecutor = FALSE;
 
 	BOOL DisableCallReg = FALSE;
@@ -1900,11 +1902,11 @@ void mainRIL()
 			if (dwData == 1)
 				DisableCallReg = TRUE;
 
-		/*nResult = ::RegQueryValueEx(hKey, "Executor", NULL, NULL, (LPBYTE)&dwData, &cbData);
+		nResult = ::RegQueryValueEx(hKey, "Executor", NULL, NULL, (LPBYTE)&dwData, &cbData);
 
 		if (nResult == ERROR_SUCCESS)
 			if (dwData == 1)
-				executor = dwData;*/
+				preferredExecutor = dwData;
 
 		RegCloseKey(hKey);
 	}
@@ -1967,6 +1969,8 @@ void mainRIL()
 		initializeSecondExecutor = TRUE;
 	}
 	std::cout << std::endl;
+
+	int firstSlot = -1;
 
 	RILUICCSLOTINFO slotinfo;
 	result = EnumerateSlots(&slotinfo);
@@ -2036,6 +2040,9 @@ void mainRIL()
 			result = GetCardInfo(i, &cardinfo);
 			if (result)
 			{
+				if (firstSlot == -1)
+					firstSlot = i;
+
 				std::cout << "Virtual card: " << cardinfo.fIsVirtualCard << std::endl;
 				std::cout << "ICCID: ";
 
@@ -2059,7 +2066,7 @@ void mainRIL()
 					// todo proper parsing workaround as struct size varies...;
 				}
 
-				if (i == 0 && !DisableCallReg)
+				if (firstSlot == i && !DisableCallReg)
 				{
 					std::cout << "Attempting to write WNF registration information for phone service." << std::endl;
 
@@ -2114,6 +2121,15 @@ void mainRIL()
 		}
 	}
 	std::cout << std::endl;
+
+	//
+	// Windows does not support initializing more than one sim, so we need to make a choice
+	//
+	executor = firstSlot;
+	initializeSecondExecutor = FALSE;
+
+	if (preferredExecutor != -1)
+		executor = preferredExecutor;
 
 	RILEQUIPMENTSTATE equipmentstate;
 	result = GetEquipmentState(&equipmentstate);
