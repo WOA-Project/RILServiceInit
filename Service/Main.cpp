@@ -2404,7 +2404,8 @@ void mainRIL()
 	std::cout << std::endl;
 
 	RILUICCSUBSCRIBERNUMBERS uiccsubscribernumbers = { 0 };
-	result = GetSubscriberNumbers(app, &uiccsubscribernumbers); if (result)
+	result = GetSubscriberNumbers(app, &uiccsubscribernumbers);
+	if (result)
 	{
 		std::cout << "Ok." << std::endl;
 	}
