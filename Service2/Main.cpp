@@ -1036,16 +1036,14 @@ void mainRIL()
 				//
 				if (enable)
 				{
-
+					std::cout << "Turning on the antenna for the current executor." << std::endl;
+					result = SetExecutorRFState(i, TRUE);
+					if (result)
+					{
+						std::cout << "Ok" << std::endl;
+					}
+					std::cout << std::endl;
 				}
-				std::cout << "Turning on the antenna for the current executor." << std::endl;
-				result = SetExecutorRFState(i, TRUE);
-				if (result)
-				{
-					std::cout << "Ok" << std::endl;
-				}
-				std::cout << std::endl;
-
 				Sleep(1000);
 
 				DisplayCurrentRegStatus(i);
