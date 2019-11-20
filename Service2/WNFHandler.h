@@ -1,0 +1,145 @@
+#pragma once
+
+
+typedef struct _WNF_TYPE_ID
+{
+	GUID TypeId;
+} WNF_TYPE_ID, * PWNF_TYPE_ID;
+typedef const WNF_TYPE_ID* PCWNF_TYPE_ID;
+
+typedef ULONG WNF_CHANGE_STAMP, * PWNF_CHANGE_STAMP;
+typedef ULONGLONG WNF_STATE_NAME, * PWNF_STATE_NAME;
+
+#define WNF_CELL_AVAILABLE_OPERATORS_CAN0 0xd8a0b2ea3bc5075
+#define WNF_CELL_AVAILABLE_OPERATORS_CAN1 0xd8a0b2ea3bd5875
+
+#define WNF_CELL_CALLFORWARDING_STATUS_CAN0 0xd8a0b2ea3bd0075
+#define WNF_CELL_CALLFORWARDING_STATUS_CAN1 0xd8a0b2ea3bde075
+
+#define WNF_CELL_CAN_STATE_CAN0 0xd8a0b2ea3bc8075
+#define WNF_CELL_CAN_STATE_CAN1 0xd8a0b2ea3bd9075
+
+#define WNF_CELL_CDMA_ACTIVATION_CAN0 0xd8a0b2ea3bc4075
+#define WNF_CELL_CDMA_ACTIVATION_CAN1 0xd8a0b2ea3bd4875
+
+#define WNF_CELL_CONFIGURED_LINES_CAN0 0xd8a0b2ea3bdf475
+#define WNF_CELL_CONFIGURED_LINES_CAN1 0xd8a0b2ea3bdfc75
+
+#define WNF_CELL_DEVICE_INFO_CAN0 0xd8a0b2ea3bc5875
+#define WNF_CELL_DEVICE_INFO_CAN1 0xd8a0b2ea3bd6075
+
+#define WNF_CELL_HOME_OPERATOR_CAN0 0xd8a0b2ea3bcc075
+#define WNF_CELL_HOME_OPERATOR_CAN1 0xd8a0b2ea3bda875
+
+#define WNF_CELL_HOME_PRL_ID_CAN0 0xd8a0b2ea3bcc875
+#define WNF_CELL_HOME_PRL_ID_CAN1 0xd8a0b2ea3bdb075
+
+#define WNF_CELL_IMSI_CAN0 0xd8a0b2ea3be2075
+#define WNF_CELL_IMSI_CAN1 0xd8a0b2ea3be2875
+
+#define WNF_CELL_IMS_STATUS_CAN0 0xd8a0b2ea3be8075
+#define WNF_CELL_IMS_STATUS_CAN1 0xd8a0b2ea3be8875
+
+#define WNF_CELL_IWLAN_AVAILABILITY_CAN0 0xd8a0b2ea3be9075
+#define WNF_CELL_IWLAN_AVAILABILITY_CAN1 0xd8a0b2ea3be9875
+
+#define WNF_CELL_NETWORK_TIME_CAN0 0xd8a0b2ea3bc4875
+#define WNF_CELL_NETWORK_TIME_CAN1 0xd8a0b2ea3bd5075
+
+#define WNF_CELL_OPERATOR_NAME_CAN0 0xd8a0b2ea3bc3875
+#define WNF_CELL_OPERATOR_NAME_CAN1 0xd8a0b2ea3bd4075
+
+#define WNF_CELL_PERSO_STATUS_CAN0 0xd8a0b2ea3bcb875
+#define WNF_CELL_PERSO_STATUS_CAN1 0xd8a0b2ea3bde875
+
+#define WNF_CELL_PHONE_NUMBER_CAN0 0xd8a0b2ea3bc6875
+#define WNF_CELL_PHONE_NUMBER_CAN1 0xd8a0b2ea3bd7075
+
+#define WNF_CELL_PREFERRED_LANGUAGES_SLOT0 0xd8a0b2ea3be1075
+#define WNF_CELL_PREFERRED_LANGUAGES_SLOT1 0xd8a0b2ea3be1875
+
+#define WNF_CELL_PS_MEDIA_PREFERENCES_CAN0 0xd8a0b2ea3bea475
+#define WNF_CELL_PS_MEDIA_PREFERENCES_CAN1 0xd8a0b2ea3beac75
+
+#define WNF_CELL_REGISTRATION_PREFERENCES_CAN0 0xd8a0b2ea3bc7c75
+#define WNF_CELL_REGISTRATION_PREFERENCES_CAN1 0xd8a0b2ea3bd8c75
+
+#define WNF_CELL_REGISTRATION_STATUS_CAN0 0xd8a0b2ea3bc2075
+#define WNF_CELL_REGISTRATION_STATUS_CAN1 0xd8a0b2ea3bd2075
+
+#define WNF_CELL_REGISTRATION_STATUS_DETAILS_CAN0 0xd8a0b2ea3bca875
+#define WNF_CELL_REGISTRATION_STATUS_DETAILS_CAN1 0xd8a0b2ea3bd9875
+
+#define WNF_CELL_SIGNAL_STRENGTH_BARS_CAN0 0xd8a0b2ea3bc1075
+#define WNF_CELL_SIGNAL_STRENGTH_BARS_CAN1 0xd8a0b2ea3bd1075
+
+#define WNF_CELL_SIGNAL_STRENGTH_DETAILS_CAN0 0xd8a0b2ea3be7075
+#define WNF_CELL_SIGNAL_STRENGTH_DETAILS_CAN1 0xd8a0b2ea3be7875
+
+#define WNF_CELL_SUPPORTED_SYSTEM_TYPES_CAN0 0xd8a0b2ea3bcb075
+#define WNF_CELL_SUPPORTED_SYSTEM_TYPES_CAN1 0xd8a0b2ea3bda075
+
+#define WNF_CELL_SYSTEM_TYPE_CAN0 0xd8a0b2ea3bc1875
+#define WNF_CELL_SYSTEM_TYPE_CAN1 0xd8a0b2ea3bd1875
+
+#define WNF_CELL_UICC_ATR_SLOT0 0xd8a0b2ea3be3875
+#define WNF_CELL_UICC_ATR_SLOT1 0xd8a0b2ea3be4075
+
+#define WNF_CELL_UICC_PIN_STATE_SLOT0 0xd8a0b2ea3bec075
+#define WNF_CELL_UICC_PIN_STATE_SLOT1 0xd8a0b2ea3bec875
+
+#define WNF_CELL_UICC_SIMSEC_SLOT0 0xd8a0b2ea3be4875
+#define WNF_CELL_UICC_SIMSEC_SLOT1 0xd8a0b2ea3be5075
+
+#define WNF_CELL_UICC_STATUS_DETAILS_SLOT0 0xd8a0b2ea3be0075
+#define WNF_CELL_UICC_STATUS_DETAILS_SLOT1 0xd8a0b2ea3be0875
+
+#define WNF_CELL_UICC_STATUS_SLOT0 0xd8a0b2ea3bc2875
+#define WNF_CELL_UICC_STATUS_SLOT1 0xd8a0b2ea3bd2875
+
+#define WNF_CELL_UTK_SETUP_MENU_SLOT0 0xd8a0b2ea3bce875
+#define WNF_CELL_UTK_SETUP_MENU_SLOT1 0xd8a0b2ea3bdd075
+
+#define WNF_CELL_VOICEMAIL_NUMBER_CAN0 0xd8a0b2ea3bc7075 // alone
+
+#define WNF_CELL_WIFI_CALL_SETTINGS_CAN0 0xd8a0b2ea3beb075
+#define WNF_CELL_WIFI_CALL_SETTINGS_CAN1 0xd8a0b2ea3beb875
+
+typedef struct _WNF_CELL_CONFIGURED_LINES_CAN_STRUCT
+{
+	DWORD dwSize = 116;
+	DWORD dwReserved1 = 0;
+	DWORD dwReserved2 = 0;
+	BYTE ICCID1[10];
+	short shReserved1 = 0;
+	DWORD dwReserved3 = 1;
+	BYTE ICCID2[10];
+	short shReserved2 = 0xA005i16;
+	DWORD dwReserved4 = 0x87000000;
+
+	//
+	// These values seem unique per SIM (?)
+	// Only the ones I highlighted do change between SIMs and looks like they must
+	// be valid in order for calls to work properly in windows
+	// No idea where they come from. Change if you have problems.
+	// They are from HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Notifications\Data 0D8A0B2EA3BDF475
+	// which is actually this entire struct if you take into consideration the change counter at the very beginning (DWORD size 4)
+	//
+	BYTE bfReserved1[3] = { 16, 2, 0xFF };
+	BYTE bfReservedField1 = '3'; //diff
+	BYTE bfReserved2[3] = { 0xFF, 0xFF, 0x89 };
+	BYTE bfReservedField2 = '\5'; //diff
+	BYTE bfReservedField3 = '\21'; //diff
+	BYTE bfReserved3[63] = { 0, 0xFF, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+							 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+							 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+							 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+
+} WNF_CELL_CONFIGURED_LINES_CAN_STRUCT, * PWNF_CELL_CONFIGURED_LINES_CAN_STRUCT;
+
+class WNFHandler
+{
+public:
+	void WriteConfiguredLineData(DWORD dwCan, BYTE* ICCID);
+};
+
