@@ -32,3 +32,24 @@ void WNFHandler::WriteConfiguredLineData(DWORD dwCan, BYTE* ICCID)
 		std::cout << "Failed to write WNF line registration information for phone service using NtUpdateWnfStateData. hResult=" << std::hex << nError << std::endl;
 	}
 }
+
+void WNFHandler::WriteBlankConfiguredLineData(DWORD dwCan)
+{
+	WNF_CELL_CONFIGURED_LINES_CAN_STRUCT configuredLine = { 0 };
+
+	configuredLine.dwSize = 116;
+	configuredLine.dwReserved1 = 1;
+
+	WNF_STATE_NAME stateName = WNF_CELL_CONFIGURED_LINES_CAN0;
+	if (dwCan == 1)
+	{
+		stateName = WNF_CELL_CONFIGURED_LINES_CAN1;
+	}
+
+	HRESULT nError = RtlPublishWnfStateData(stateName, nullptr, &configuredLine, 0x74, nullptr);
+
+	if (nError != ERROR_SUCCESS)
+	{
+		std::cout << "Failed to write WNF line registration information for phone service using NtUpdateWnfStateData. hResult=" << std::hex << nError << std::endl;
+	}
+}

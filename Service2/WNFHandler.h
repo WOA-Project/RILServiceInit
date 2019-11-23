@@ -141,5 +141,6 @@ class WNFHandler
 {
 public:
 	void WriteConfiguredLineData(DWORD dwCan, BYTE* ICCID);
+	void WriteBlankConfiguredLineData(DWORD dwCan);
 };
 

@@ -1048,6 +1048,14 @@ void mainRIL()
 
 				DisplayCurrentRegStatus(i);
 			}
+			else
+			{
+				if (!DisableCallReg)
+				{
+					std::cout << "Attempting to write WNF registration information for phone service." << std::endl;
+					wnfHandler.WriteBlankConfiguredLineData(i);
+				}
+			}
 		}
 	}
 	std::cout << std::endl;
